@@ -1,0 +1,3 @@
+D:/mySecre/workspace/CommunitySearch/build/CMakeFiles/csp.dir
+D:/mySecre/workspace/CommunitySearch/build/CMakeFiles/ALL_BUILD.dir
+D:/mySecre/workspace/CommunitySearch/build/CMakeFiles/ZERO_CHECK.dir
