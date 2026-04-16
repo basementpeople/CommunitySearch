@@ -1,4 +1,5 @@
 ﻿#include "TreeIndex.h"
+#include "ProjectConstants.h"
 std::unordered_set<int> pending_parent;
 
 void TreeIndex::copyGraphState(const Graph& graph) {
@@ -865,7 +866,7 @@ std::unordered_set<int> TreeIndex::connectionStep(std::unordered_set<int>& H, co
 query_nodes TreeIndex::steinerTree(std::unordered_set<int>& H, const query_nodes& terminals) {
     std::vector<int> mstParent(N, -1); // MST 中的父节点
     std::vector<bool> inMST(N, false); // 标记是否在 MST 中
-    std::vector<int> key(N, INT32_MAX); // 每个节点的键值（最小边权重）
+    std::vector<int> key(N, int_max_alter); // 每个节点的键值（最小边权重）
     std::priority_queue<std::pair<int, int>, std::vector<std::pair<int, int>>, std::greater<>> pq; // 优先队列
 
     std::unordered_map<int, std::unordered_set<int>> adj_H;

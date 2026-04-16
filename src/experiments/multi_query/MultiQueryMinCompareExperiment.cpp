@@ -292,7 +292,8 @@ MethodRunResult RunPrecise(Graph& graph, query_group group) {
     runResult.stats.stageClusterSec = time_cluster;
     runResult.stats.stageGreedyStepSec = time_1;
     runResult.stats.stageSteinerSec = time_2;
-    runResult.stats.stageSecondClusteringSec = time_3;
+    // Precise pipeline has no second clustering stage.
+    runResult.stats.stageSecondClusteringSec = 0.0;
     runResult.stats.stageGreedySimplySec = time_4;
     runResult.stats.firstClusterCount = static_cast<std::size_t>(clu_1);
     runResult.stats.unionNodeCount = unionNodes.size();
@@ -440,8 +441,18 @@ void RunMultiQueryMinCompareExperiment(Graph& graph, int queryGroupCount, int qu
     out.close();
 
     std::cout << "[Summary]\n"
-              << "  precise       : time=" << precise.stats.elapsedSec << "s\n"
-              << "  fast          : time=" << fast.stats.elapsedSec << "s\n"
+              << "  precise       : time=" << precise.stats.elapsedSec << "s"
+              << " (cluster=" << precise.stats.stageClusterSec
+              << "s, shared_greedy=" << precise.stats.stageGreedyStepSec
+              << "s, steiner=" << precise.stats.stageSteinerSec
+              << "s, second_cluster=N/A"
+              << ", greedy_simply=" << precise.stats.stageGreedySimplySec << "s)\n"
+              << "  fast          : time=" << fast.stats.elapsedSec << "s"
+              << " (cluster=" << fast.stats.stageClusterSec
+              << "s, shared_greedy=" << fast.stats.stageGreedyStepSec
+              << "s, steiner=" << fast.stats.stageSteinerSec
+              << "s, second_cluster=" << fast.stats.stageSecondClusteringSec
+              << "s, greedy_simply=" << fast.stats.stageGreedySimplySec << "s)\n"
               << "  greedy_loop   : time=" << greedyLoop.stats.elapsedSec << "s" << std::endl;
     std::cout << "Output CSV: " << outputCsvPath << std::endl;
     std::cout << "===== end test_multi_query_min_compare =====\n" << std::endl;

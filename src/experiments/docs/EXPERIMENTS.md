@@ -35,7 +35,7 @@
 3. `randomQueryCount`：随机查询数量（对部分实验表示“查询组数”）
 4. `randomSeed`：随机种子（`0` 表示随机设备生成）
 5. `queryNodeCount`：每个查询包含的点数（主要用于 batch/multi-query 实验）
-6. `similarityThreshold`：可选，相似度阈值（用于 `batchmin_compare`、`multi_query_min_compare`；不传则自动估计）
+6. `similarityThreshold`：可选，相似度阈值（用于 `multi_query_min_compare`；不传则自动估计）
 7. `useLegacyQueryBuilder`：可选，是否启用 legacy 风格查询构造（`0/1`，默认 `0`）
 8. `shift_1`：可选，legacy 模式下 core 下界扩展参数（默认 `0`）
 9. `shift_2`：可选，legacy 模式下 core 上界扩展参数（默认 `0`）
@@ -93,17 +93,6 @@ csp.exe data/raw/email-Eu-core.txt batchsearch 20 42 6
       - `..._globalsearch_loop_detail.csv`
       - `..._retrieval_loop_detail.csv`
 
-- `batchmin_compare`
-  - 多查询下对比两种最小化算法：
-    - `batchMinsearchPrecise`
-    - `batchMinsearchFast`
-  - 为保证可比性，两种方法使用同一批随机查询、同一相似度阈值。
-  - 输出：
-    - 汇总：`data\output\multi_query\batchmin_compare_result.csv`
-    - 方法明细：
-      - `..._precise_detail.csv`
-      - `..._fast_detail.csv`
-
 - `multi_query_min_compare`
   - 多查询下比较三种 minCSP 方法：
     - `batchMinsearchPrecise`
@@ -152,18 +141,6 @@ csp.exe data/raw/email-Eu-core.txt batchsearch_rough 20 123 6
 csp.exe data/raw/email-Eu-core.txt multi_query_compare 20 123 6
 ```
 
-- **多查询 batch 最小化（Precise vs Fast）**
-
-```bash
-csp.exe data/raw/email-Eu-core.txt batchmin_compare 20 123 6
-```
-
-- **多查询 batch 最小化（手动指定相似度阈值）**
-
-```bash
-csp.exe data/raw/email-Eu-core.txt batchmin_compare 20 123 6 0.15
-```
-
 - **多查询最小化四方法对比**
 
 ```bash
@@ -184,6 +161,13 @@ csp.exe data/raw/email-Eu-core.txt multi_query_min_compare 20 123 6 0.15 1 1 2 3
 
 ## 5) 输出字段解释（多查询对比）
 
+`batchsearch_result.csv` 与 `batchsearch_rough_result.csv` 的关键列：
+
+- `TestNumber`：查询编号（从 `0` 开始）
+- `QueryNodes`：该组查询节点（空格分隔）
+- `size`：该查询结果的节点数
+- `k`：该查询结果对应的最小度（由索引流程记录）
+
 `multi_query_compare_result.csv` 的关键列：
 
 - `TimeSec`：该方法处理整批查询的总时间（秒）
@@ -192,27 +176,12 @@ csp.exe data/raw/email-Eu-core.txt multi_query_min_compare 20 123 6 0.15 1 1 2 3
 - `AvgResultNodeCount`：平均每个查询结果大小（整数平均）
 - `DetailCsv`：该方法对应明细文件路径
 
-`batchmin_compare_result.csv` 的关键列：
+`multi_query_compare` 的方法明细文件（`*_detail.csv`）关键列：
 
-- `BatchSearchSec`：对应方法中 batchsearch 阶段耗时（秒）
-- `MinSearchSec`：对应方法中 batch 最小化阶段耗时（秒）
-- `TotalSec`：上述两阶段总耗时（秒）
-- `StageClusterSec`：batch 最小化中第一阶段聚类耗时（秒）
-- `StageSharedGreedySec`：batch 最小化中簇共享 `greedyStep` 耗时（秒）
-- `StageMainSec`：batch 最小化主阶段耗时（秒）
-  - `Precise`：`steiner + per-query refine`
-  - `Fast`：`steiner + 二次聚类 + grouped refine` 总体
-- `StageExtraSec`：batch 最小化附加阶段耗时（秒）
-  - `Precise` 固定为 `0`
-  - `Fast` 对应 `steiner + 二次聚类`（不含 grouped refine）
-- `StageRefineSec`：batch 最小化最终精化耗时（秒）
-  - `Precise` 固定为 `0`
-  - `Fast` 对应 `grouped refine`
-- `FirstClusterCount`：第一阶段相似度聚类得到的簇数量
-- `UnionNodeCount`：所有查询最终结果取并集后的节点数
-- `TotalResultNodeCount`：所有查询最终结果大小直接求和（不去重）
-- `AvgResultNodeCount`：平均每个查询最终结果大小（整数平均）
-- `DetailCsv`：该方法对应明细文件路径
+- `Code`：查询编号（与输入查询组顺序一致）
+- `QueryNodes`：该组查询节点（空格分隔）
+- `ResultSize`：该方法下该查询结果的节点数
+- `K`：该方法下该查询对应的最小度（若方法本身不直接返回，则按实现回填）
 
 `multi_query_min_compare_result.csv` 的关键列：
 

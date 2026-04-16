@@ -1,0 +1,87 @@
+// Backup for reading logic only (no timing counters).
+// Source reference: SharingIndex::batchMinsearchPrecise / batchMinsearchFast
+
+void SharingIndex::batchMinsearchPrecise(query_group& group) {
+    optimizedHierarchicalClustering(group, simi);
+
+    int count = 0;
+    for (auto& codes : clusters_simi) {
+        std::unordered_set<int> Q;
+        int k = 0;
+        std::unordered_set<int> H;
+        for (auto& code : codes) {
+            Q.insert(codeToQuery[code].begin(), codeToQuery[code].end());
+            if (k <= codeToK[code]) {
+                k = codeToK[code];
+            }
+            H.insert(queryToResult[code].begin(), queryToResult[code].end());
+        }
+
+        greedyClusterToResult[count] = greedyStep(Q, k, H);
+
+        for (auto& q : codes) {
+            greedyQueryToResult[q] = greedyClusterToResult[count];
+        }
+
+        for (auto& q : codes) {
+            queryToTree[q] = steinerTree(greedyClusterToResult[count], codeToQuery[q]);
+        }
+
+        for (auto& q : codes) {
+            queryToResult[q] = greedyStep_simply(queryToTree[q], codeToK[q], greedyClusterToResult[count]);
+        }
+        count++;
+    }
+}
+
+void SharingIndex::batchMinsearchFast(query_group& group) {
+    optimizedHierarchicalClustering(group, simi);
+
+    int count = 0;
+    for (auto& codes : clusters_simi) {
+        std::unordered_set<int> Q;
+        int k = 0;
+        std::unordered_set<int> H;
+        for (auto& code : codes) {
+            Q.insert(codeToQuery[code].begin(), codeToQuery[code].end());
+            if (k <= codeToK[code]) {
+                k = codeToK[code];
+            }
+            H.insert(queryToResult[code].begin(), queryToResult[code].end());
+        }
+
+        greedyClusterToResult[count] = greedyStep(Q, k, H);
+
+        for (auto& q : codes) {
+            greedyQueryToResult[q] = greedyClusterToResult[count];
+        }
+
+        for (auto& code : codes) {
+            queryToTree[code] = steinerTree(greedyQueryToResult[code], codeToQuery[code]);
+        }
+
+        clusteringOnCSP(codes);
+
+        for (auto& pair : clusters_csp) {
+            std::unordered_set<int> Q;
+            for (auto& q : pair.second) {
+                Q.insert(queryToTree[q].begin(), queryToTree[q].end());
+            }
+
+            int k = 0;
+            for (auto& Ck : shellToComs) {
+                if (Ck.second.count(codeToCom[*pair.second.begin()])) {
+                    k = Ck.first;
+                    break;
+                }
+            }
+
+            std::unordered_set<int> ans;
+            ans = greedyStep_simply(Q, k, greedyClusterToResult[count]);
+            for (auto& q : pair.second) {
+                queryToResult[q] = ans;
+            }
+        }
+        count++;
+    }
+}
