@@ -11,10 +11,15 @@
 // 这个方案不是对单个点做处理，而是对一组点同时做处理
 class CoreGroup {
 public:
+
+    static std::unordered_map<int, int> coreDecomposition(Graph& graph) {
+        return coreGroupsAlgorithm(graph);
+    }
+
     // 核心分解函数 coreGroups
     static std::unordered_map<int, int> coreGroupsAlgorithm(Graph& graph)
     {
-        std::unordered_map<int, int> cores; // 存储每个节点的核心度
+        std::unordered_map<int, int> nodeToShell; // 存储每个节点的核心度
 
         // 将节点按度数分类
         std::unordered_map<int, int> degrees = graph.getDegrees();  // 获取图的节点度数
@@ -33,7 +38,7 @@ public:
             else {
                 node = *orderedNodes[lowestDegree].begin();
                 orderedNodes[lowestDegree].erase(node);
-                cores[node] = lowestDegree; // 设置核心度
+                nodeToShell[node] = lowestDegree; // 设置核心度
                 if (lowestDegree > now) now = lowestDegree;
                 degrees[node] = -1;         // 将节点度数设为-1，标记已处理
 
@@ -48,17 +53,13 @@ public:
                 }
             }
         }
-        // std::cout << "这个图的最大核心度为: " << now << std::endl;
-        // for (auto &pair : cores) {
-        //     std::cout << pair.first <<  "  " << pair.second << std::endl;
-        // }
-        return cores;
+        return nodeToShell;
     }
 
     // 核心分解函数 coreGroups（使用最小堆）
     static std::unordered_map<int, int> coreGroupsAlgorithm_2(Graph& graph)
     {
-        std::unordered_map<int, int> cores;          // 存储每个节点的核心度
+        std::unordered_map<int, int> nodeToShell;          // 存储每个节点的核心度
         std::unordered_map<int, int> degrees;       // 存储每个节点的度数
         std::unordered_map<int, bool> inCore;       // 标记节点是否在核心中
 
@@ -88,7 +89,7 @@ public:
             if (!inCore[currentNode]) continue;
 
             // 设置核心度并标记为已处理
-            cores[currentNode] = currentDegree;
+            nodeToShell[currentNode] = currentDegree;
             inCore[currentNode] = false;
 
             // 更新邻居节点的度数
@@ -104,11 +105,7 @@ public:
                 }
             }
         }
-
-        // for (auto &pair : cores) {
-        //     std::cout << pair.first <<  "  " << pair.second << std::endl;
-        // }
-        return cores;
+        return nodeToShell;
     }
 
 };

@@ -125,6 +125,8 @@ public:
 
     // batch查找解决CSP
     std::unordered_set<int> batchsearch(query_group& group);
+    // Rough mode compatibility: currently reuses batchsearch path.
+    std::unordered_set<int> batchsearchRough(query_group& group) { return batchsearch(group); }
     void printAndwrite(std::string path);
 
     void batchMinsearch(query_group& group);
@@ -136,6 +138,9 @@ public:
 
     void batchMinsearch_1(query_group& group); // 精确方法
     void batchMinsearch_2(query_group& group); // 快速方法
+    // Compatibility wrappers used by newer experiment modules.
+    void batchMinsearchPrecise(query_group& group) { batchMinsearch_1(group); }
+    void batchMinsearchFast(query_group& group) { batchMinsearch_2(group); }
 
     // protected:
     //CSP
@@ -151,6 +156,11 @@ public:
     //MIN_CSP
     std::unordered_map<int, int> codetoid; // 保存batchsearch的code -> id
     std::unordered_map<int, int> codetok; // code -> k
+    // Compatibility field aliases for experiment modules.
+    int codeCount = 0;
+    std::unordered_map<int, std::unordered_set<int>> queryToResult; // alias of codetore
+    std::unordered_map<int, int> codeToK; // alias of codetok
+    std::unordered_map<int, int> codeToCom; // alias of codetoid
     int clusters_count; // 第一次聚类的类数量
     int clusters_count2; // 第二次聚类的类数量
     std::unordered_map<int, std::unordered_set<int>> clusters;
@@ -180,6 +190,13 @@ public:
         if (rootX != rootY) {
             parent[rootY] = rootX;
         }
+    }
+
+    void syncCompatibilityViews() {
+        codeCount = threshold;
+        queryToResult = codetore;
+        codeToK = codetok;
+        codeToCom = codetoid;
     }
 
 };

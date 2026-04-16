@@ -13,6 +13,7 @@
 #include <map>
 #include <climits>
 #include <chrono>
+#include <utility>
 #include "Graph.h"
 #include "CoreGroup.h"
 #include "VertexScore.h"
@@ -84,39 +85,65 @@ public:
 
 class TreeIndex : public Graph {
 public:
-    TreeIndex(Graph& graph); // 得到的索引不是树结构
-    // TreeIndex_2() : shell_count(0) {};
+    TreeIndex(Graph& graph);
     ~TreeIndex() {};
+    // 打印核心索引和连通分量树 -- To be optimized
     void printTreeIndex();
-    void beMaxcom();
+    // 得到最大连通分量
+    void getMaxCom();
+    // 找到目标shell层的父连通分量ID
     int findClosestShellLayer(int componentId, int targetShell);
+    // 修改最高父连通分量
     int modifyHighestParent(int componentId, int newParentId, int I);
 
-    std::unordered_set<int> RetrievalShellStruct(query_nodes& queryNodes, int& k);
-    std::unordered_set<int> getchnodes(int id);
+    // 基于索引的社区搜索算法
+    std::unordered_set<int> retrievalShellStruct(const query_nodes& queryNodes, int& k);
+    // 获取连通分量id 对应的 节点集合
+    std::unordered_set<int> getNodesFromCom(int id);
+    // 
     std::unordered_set<int> getchnodes_2(int id, int& k);
-
-    std::unordered_set<int> greedyConnection(query_nodes& queryNodes, int k, std::unordered_set<int> H);
-    std::unordered_set<int> greedyStep(query_nodes& queryNodes, int k, std::unordered_set<int>& H_x);
-    //absl::flat_hash_set<int> greedyStep(query_nodes& queryNodes, int k, std::unordered_set<int>& H_x);
-    std::unordered_set<int> greedyStep_2(query_nodes& queryNodes, int k, std::unordered_set<int>& H);
-    bool checkMinDegree(const std::unordered_map<int, int>& a, int k);
-    bool checkComponent(std::unordered_map<int, int>& a);
-
-    std::unordered_set<int> connectionStep(std::unordered_set<int>& H, query_nodes& queryNodes, int k);
-    query_nodes steinerTree(std::unordered_set<int>& H, query_nodes& terminals);
-    std::unordered_set<int> greedyStep_simply(query_nodes& queryNodes, int k, std::unordered_set<int>& H_x);
+    // GrCon算法
+    std::unordered_set<int> greedyConnection(const query_nodes& queryNodes, int k, std::unordered_set<int> H);
+    // GrCon算法第一步 greedystep
+    std::unordered_set<int> greedyStep(const query_nodes& queryNodes, int k, std::unordered_set<int>& H_x);
+    // GrCon算法第二步 connectionstep
+    std::unordered_set<int> connectionStep(std::unordered_set<int>& H, const query_nodes& queryNodes, int k);
+    // 斯坦纳树
+    query_nodes steinerTree(std::unordered_set<int>& H, const query_nodes& terminals);
+    // greedyStep_simply 简化版贪婪算法
+    std::unordered_set<int> greedyStep_simply(const query_nodes& queryNodes, int k, std::unordered_set<int>& H_x);
+    // 输出结果 -- To be optimized
     void output(std::unordered_set<int> ans, std::string path, int k);
 
 protected:
-    int core_max;
-    std::unordered_map<int, int> cores;  // 点 核心索引
-    std::unordered_map<int, int> nodetocom;  // 点 连通分量id
-    std::unordered_map<int, std::unordered_set<int>> comtonode;  // 连通分量id 点
-    std::unordered_map<int, std::unordered_set<int>> Cktocom;  // Ck 的连通分量id集
-    std::unordered_map<int, int> comtopa;  // 连通分量id 父连通分量id
-    std::unordered_map<int, std::unordered_set<int>> comtoch;  // 连通分量id 子连通分量id
-    int id_threshold;
+    // 复制图状态
+    void copyGraphState(const Graph& graph);
+    // 按shell层分组节点
+    std::unordered_map<int, std::unordered_set<int>> groupNodesByShell() const;
+    // 处理shell层
+    void processShellLayer(int shell, const std::unordered_set<int>& shellNodes,
+                           std::unordered_set<int>& accumulatedNodes, int& nextComponentId);
+
+    // 最大shell层
+    int coreMax;
+
+    // 节点 -> 核心度（即shell层）
+    std::unordered_map<int, int> nodeToShell;
+
+    // 节点 -> 连通分量id
+    std::unordered_map<int, int> nodeToCom;
+
+    // 连通分量id -> 节点集
+    std::unordered_map<int, std::unordered_set<int>> comToNodes; 
+
+    // 核心度 -> 连通分量id集
+    std::unordered_map<int, std::unordered_set<int>> shellToComs;
+
+    // 连通分量id -> 父连通分量id
+    std::unordered_map<int, int> comToParent;
+
+    // 连通分量id -> 子连通分量id集
+    std::unordered_map<int, std::unordered_set<int>> comToChildren; 
 
 };
 

@@ -47,17 +47,17 @@ void SharingIndex::initializeMarks() {
     // 对于分量id 对应的标记
     int mask = 0;
     std::unordered_set<int> U;
-    // std::cout<< "core_max: " << core_max << std::endl;
-    for (int i = core_max; i >= 1; --i) {
-        for (int comp_id : Cktocom[i]) {
+    // std::cout<< "coreMax: " << coreMax << std::endl;
+    for (int i = coreMax; i >= 1; --i) {
+        for (int comp_id : shellToComs[i]) {
             if (U.find(comp_id) == U.end()) {
                 idtore[comp_id].insert(mask++);
                 U.insert(comp_id);
             }
-            if (comtopa[comp_id] != -1) {
-                U.insert(comtopa[comp_id]);
+            if (comToParent[comp_id] != -1) {
+                U.insert(comToParent[comp_id]);
                 if (idtore[comp_id].size() != 0) {
-                    idtore[comtopa[comp_id]].insert(idtore[comp_id].begin(), idtore[comp_id].end());
+                    idtore[comToParent[comp_id]].insert(idtore[comp_id].begin(), idtore[comp_id].end());
                 }
                 else {
                     std::cout << "警告：存在树节点没有标记" << std::endl;
@@ -67,9 +67,9 @@ void SharingIndex::initializeMarks() {
     }
     // 打印结果
     // std::cout << "初始化标记后的idtore状态（按Cktocom结构顺序）：" << std::endl;
-    // for (int k = core_max; k >= 1; --k) {
-    //     if (Cktocom.find(k) == Cktocom.end()) continue;
-    //     std::vector<int> comp_ids(Cktocom[k].begin(), Cktocom[k].end());
+    // for (int k = coreMax; k >= 1; --k) {
+    //     if (shellToComs.find(k) == shellToComs.end()) continue;
+    //     std::vector<int> comp_ids(shellToComs[k].begin(), shellToComs[k].end());
     //     std::sort(comp_ids.begin(), comp_ids.end());
     //     for (int comp_id : comp_ids) {
     //         std::cout << "核心度: " << k << " 分量ID: " << comp_id << " 标记: ";
@@ -83,20 +83,20 @@ void SharingIndex::initializeMarks() {
     // std::cout << "\n===== 验证标记结构 =====" << std::endl;
     // bool structure_valid = true;
 
-    // for (int k = core_max; k >= 1; --k) {
-    //     if (Cktocom.find(k) == Cktocom.end()) continue;
-    //     for (int comp_id : Cktocom[k]) {
+    // for (int k = coreMax; k >= 1; --k) {
+    //     if (shellToComs.find(k) == shellToComs.end()) continue;
+    //     for (int comp_id : shellToComs[k]) {
     //         if (idtore[comp_id].empty()) {
     //             std::cout << "错误：分量 " << comp_id << " 没有标记" << std::endl;
     //             structure_valid = false;
     //         }
 
     //         // 检查父子关系：父节点应该包含所有子节点的标记
-    //         if (comtopa[comp_id] != -1) {
+    //         if (comToParent[comp_id] != -1) {
     //             bool parent_has_child_marks = true;
     //             for (int mark : idtore[comp_id]) {
-    //                 if (idtore[comtopa[comp_id]].find(mark) == idtore[comtopa[comp_id]].end()) {
-    //                     std::cout << "错误：父分量 " << comtopa[comp_id] << " 缺少子分量 " << comp_id << " 的标记 " << mark << std::endl;
+    //                 if (idtore[comToParent[comp_id]].find(mark) == idtore[comToParent[comp_id]].end()) {
+    //                     std::cout << "错误：父分量 " << comToParent[comp_id] << " 缺少子分量 " << comp_id << " 的标记 " << mark << std::endl;
     //                     parent_has_child_marks = false;
     //                 }
     //             }
@@ -106,7 +106,7 @@ void SharingIndex::initializeMarks() {
     //         }
 
     //         // 检查叶子节点：叶子节点应该有且仅有一个标记
-    //         if (comtoch[comp_id].empty() || (comtoch[comp_id].size() == 1 && comtoch[comp_id].find(-1) != comtoch[comp_id].end())) {
+    //         if (comToChildren[comp_id].empty() || (comToChildren[comp_id].size() == 1 && comToChildren[comp_id].find(-1) != comToChildren[comp_id].end())) {
     //             if (idtore[comp_id].size() != 1) {
     //                 std::cout << "错误：叶子分量 " << comp_id << " 应该有且仅有一个标记，但实际有 " << idtore[comp_id].size() << " 个" << std::endl;
     //                 structure_valid = false;
@@ -149,11 +149,11 @@ std::unordered_set<int> SharingIndex::batchsearch(query_group& group) {
         qtocode[threshold] = tmp;
         codetok[threshold] = INT32_MAX;
         for (auto& node : tmp) {
-            if (cores[node] < codetok[threshold]) {
-                codetok[threshold] = cores[node];
+            if (nodeToShell[node] < codetok[threshold]) {
+                codetok[threshold] = nodeToShell[node];
             }
-            if (cores[node] > k_max) {
-                k_max = cores[node];
+            if (nodeToShell[node] > k_max) {
+                k_max = nodeToShell[node];
             }
             Q[node].push_back(threshold);
         }
@@ -166,9 +166,9 @@ std::unordered_set<int> SharingIndex::batchsearch(query_group& group) {
     std::unordered_set<int> H;
     std::unordered_set<int> tmp_nodes; // 不在Q的循环内删点
     for (auto& pair : Q) {
-        if (cores[pair.first] == k_max) {
-            for (int comp_id : Cktocom[k_max]) {
-                if (comtonode[comp_id].find(pair.first) != comtonode[comp_id].end()) {
+        if (nodeToShell[pair.first] == k_max) {
+            for (int comp_id : shellToComs[k_max]) {
+                if (comToNodes[comp_id].find(pair.first) != comToNodes[comp_id].end()) {
                     H.insert(comp_id);
                     for (auto& tmp : pair.second) {
                         codetoma[tmp].insert(idtore[comp_id].begin(), idtore[comp_id].end());
@@ -192,8 +192,8 @@ std::unordered_set<int> SharingIndex::batchsearch(query_group& group) {
     std::vector<std::unordered_set<int>> Qlist;
     Qlist.resize(k_max + 1);
     for (auto& pair : Q) {
-        if (cores[pair.first] >= 1) {
-            Qlist[cores[pair.first]].insert(pair.first);
+        if (nodeToShell[pair.first] >= 1) {
+            Qlist[nodeToShell[pair.first]].insert(pair.first);
         }
     }
 
@@ -271,9 +271,9 @@ std::unordered_set<int> SharingIndex::batchsearch(query_group& group) {
 
         std::unordered_set<int> Hp;
         for (auto& com : H) {
-            if (comtopa[com] != -1) {
-                if (cores[*comtonode[comtopa[com]].begin()] == k) {
-                    Hp.insert(comtopa[com]);
+            if (comToParent[com] != -1) {
+                if (nodeToShell[*comToNodes[comToParent[com]].begin()] == k) {
+                    Hp.insert(comToParent[com]);
                 }
                 else {
                     Hp.insert(com);
@@ -283,8 +283,8 @@ std::unordered_set<int> SharingIndex::batchsearch(query_group& group) {
         if (Q_.size() > 0) {
             // std::cout << "处理核心度为 " << k << " 的节点，数量: " << Q_.size() << std::endl;
             for (auto& node : Q_) {
-                for (int comp_id : Cktocom[k]) {
-                    if (comtonode[comp_id].find(node) != comtonode[comp_id].end()) {
+                for (int comp_id : shellToComs[k]) {
+                    if (comToNodes[comp_id].find(node) != comToNodes[comp_id].end()) {
                         Hp.insert(comp_id);
                     }
                     for (auto& tmp : Q[node]) {
@@ -357,6 +357,7 @@ std::unordered_set<int> SharingIndex::batchsearch(query_group& group) {
     std::cout << "=== batchsearch 完成 ===" << std::endl;
     std::cout << "最终结果大小: " << ans.size() << std::endl;
     std::cout << "处理的查询组数量: " << threshold << std::endl;
+    syncCompatibilityViews();
 
     return ans;
 }
@@ -483,6 +484,7 @@ void SharingIndex::batchMinsearch_1(query_group& group) {
     std::cout << "greedy_1: " << time_1 << std::endl;
     std::cout << "steiner_1: " << time_2 << std::endl;
     std::cout << "gsim_1: " << time_3 << std::endl;
+    syncCompatibilityViews();
     printAndwrite("batch_7_1.csv");
 }
 
@@ -557,7 +559,7 @@ void SharingIndex::batchMinsearch_2(query_group& group) {
             }
 
             int k = 0;
-            for (auto& Ck : Cktocom) {
+            for (auto& Ck : shellToComs) {
                 if (Ck.second.count(codetoid[*pair.second.begin()])) {
                     k = Ck.first;
                     break;
@@ -578,7 +580,12 @@ void SharingIndex::batchMinsearch_2(query_group& group) {
     std::cout << "steiner_2: " << time_2 << std::endl;
     std::cout << "聚类2_2: " << time_3 << std::endl;
     std::cout << "gsim_2: " << time_4 << std::endl;
+    syncCompatibilityViews();
     printAndwrite("batch_7_2.csv");
+}
+
+void SharingIndex::batchMinsearch(query_group& group) {
+    batchMinsearch_1(group);
 }
 // 与batch相关的 聚类算法
 // 计算两个查询之间的相似度
@@ -686,7 +693,7 @@ std::vector<query_group> SharingIndex::optimizedHierarchicalClustering(query_gro
             similarityMatrix[i][j] = sim;
             similarityMatrix[j][i] = sim;
             if (sim >= threshold_) {
-                similarityHeap.push({ sim, i, j });
+                similarityHeap.push({ sim, static_cast<int>(i), static_cast<int>(j) });
             }
         }
     }
@@ -788,7 +795,7 @@ std::vector<query_group> SharingIndex::optimizedHierarchicalClustering(query_gro
         for (size_t i = 0; i < newSize; ++i) {
             for (size_t j = i + 1; j < newSize; ++j) {
                 if (similarityMatrix[i][j] >= threshold_) {
-                    similarityHeap.push({ similarityMatrix[i][j], i, j });
+                    similarityHeap.push({ similarityMatrix[i][j], static_cast<int>(i), static_cast<int>(j) });
                 }
             }
         }

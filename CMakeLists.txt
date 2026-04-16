@@ -17,12 +17,16 @@ set(CSP_SOURCES
   src/graph/TreeIndex.cpp
   src/graph/SharingIndex.cpp
   src/graph/VertexScore.cpp
+  src/experiments/core/ExperimentRunner.cpp
+  src/experiments/core/SingleQueryExperiment.cpp
+  src/experiments/multi_query/MultiQueryMinCompareExperiment.cpp
 )
 
 add_executable(csp ${CSP_SOURCES})
 
 # 头文件目录
 target_include_directories(csp PRIVATE
+  ${PROJECT_SOURCE_DIR}/src
   ${PROJECT_SOURCE_DIR}/src/include
 )
 

@@ -1,76 +1,115 @@
 ﻿#ifndef GRAPH_H
 #define GRAPH_H
 
-#include <iostream>
+#include <algorithm>
 #include <fstream>
-#include <cstring>
+#include <iostream>
+#include <queue>
 #include <string>
-#include <vector>
 #include <unordered_map>
 #include <unordered_set>
-#include <algorithm>
-#include <stack>
-#include <map>
-#include <queue>
-#include <cmath>
-#include <ctime>
+#include <vector>
+#include <limits>
 
-#define query_nodes std::unordered_set<int>  // 查询顶点集
-#define query_group std::vector<query_nodes>  // 多个查询顶点集
+ // 查询顶点集
+using query_nodes = std::unordered_set<int>;
+// 查询顶点集的聚类
+using query_group = std::vector<query_nodes>;
 
 class Graph {
 public:
-    Graph(const std::string path); // 读取文件，获得初始图
-    Graph(const Graph& graph) :adj(graph.adj), degrees(graph.degrees), orderedNodes(graph.orderedNodes), minimumDegree(graph.minimumDegree), Dmax(graph.Dmax), m(graph.m), n(graph.n) {}; // 用来传递成员给子类，是复制构造函数
-    Graph(std::unordered_set<int>& subVertices, Graph& graph); // 读取哈希表，获得初始图
-    Graph() : minimumDegree(0), Dmax(0), m(0), n(0) {}; // 无参、默认构造函数
+    // 读取文件，获得初始图
+    Graph(const std::string& path);
+    // 用来传递成员给子类，是复制构造函数
+    Graph(const Graph& graph)
+        : adj(graph.adj),
+          degrees(graph.degrees),
+          orderedNodes(graph.orderedNodes),
+          minDegree(graph.minDegree),
+          maxDegree(graph.maxDegree),
+          m(graph.m),
+          n(graph.n),
+          N(graph.N) {};
+    // 读取哈希表，获得初始图
+    Graph(std::unordered_set<int>& subVertices, Graph& graph);
+    // 无参、默认构造函数
+    Graph() : minDegree(0), maxDegree(0), m(0), n(0), N(0) {};
+    // 析构函数
     ~Graph() {};
 
-    // Greedy算法 每次删点都得到一次result会非常慢
-    Graph globalsearch(query_nodes& queryNodes);
-
-    // 辅助函数，固定最后 ------------------------------------
-    void readFromFile(const std::string fileName); // 从文件中读取图
-    void addNode(int node); // 添加节点到图中
-    void addEdge(int from, int to); // 添加两个节点之间的边
-    std::unordered_map<int, int> computeDegrees(); // 计算每个节点的度
-    void statistic(); // 打印图的相关信息
-    bool isConnected(query_nodes queryNodes, std::unordered_map<int, int> degree); // 检查查询集是否连通
+    // 从文件中读取图
+    void readFromFile(const std::string& fileName);
+    // 添加节点到图中
+    void addNode(int node);
+    // 添加两个节点之间的边
+    void addEdge(int from, int to);
+    // 计算每个节点的度
+    std::unordered_map<int, int> computeDegrees();
+    // 打印图的相关信息
+    void statistic();
+    // 检查查询集是否连通
+    bool isConnected(const query_nodes& queryNodes, const std::unordered_map<int, int>& degree) const;
+    // 获取节点的邻居
     std::unordered_set<int>& getNeighbors(int node) {
-        return getAdj()[node];
+        return adj.at(node);
     }
-    int getminimumDegree(std::unordered_set<int>& nodes); // 得到子图中的最小度
-    std::unordered_set<int> getComponent(query_nodes& queryNodes, std::unordered_set<int>& result_end); // 确保结果联通
-
+    // 获取节点的邻居的常量引用
+    const std::unordered_set<int>& getNeighbors(int node) const {
+        static const std::unordered_set<int> kEmptyNeighbors;
+        const auto it = adj.find(node);
+        return (it != adj.end()) ? it->second : kEmptyNeighbors;
+    }
+    // 得到子图中的最小度
+    int getMinDegree(std::unordered_set<int>& nodes) const;
+    // 确保结果联通
+    std::unordered_set<int> getComponent(const query_nodes& queryNodes, const std::unordered_set<int>& candidateNodes);
+    // 移除节点，更新图的相关信息 -- To be optimized
     void removeNode(int node);
 
+    // Greedy算法 每次删点都得到一次result会非常慢
+    std::unordered_set<int> globalsearch(const query_nodes& queryNodes);
+    // K-GS: 先按多源BFS扩展到K规模，再做global search -- To be optimized
+    std::unordered_set<int> kGlobalsearch(const query_nodes& queryNodes, int kCount);
+
     // 获取受保护的数据成员
-    int getN() { return N; }
-    int getn() { return n; }
-    int getM() { return m; }
-    int getDmax() { return Dmax; }
-    int getminimumDegree() { return minimumDegree; }
-    std::vector<std::unordered_set<int>>& getOrderedNodes() { return orderedNodes; }
-    std::unordered_map<int, int>& getDegrees() { return degrees; }
     std::unordered_map<int, std::unordered_set<int>>& getAdj() { return adj; }
+    std::unordered_map<int, int>& getDegrees() { return degrees; }
+    std::vector<std::unordered_set<int>>& getOrderedNodes() { return orderedNodes; }
+
+    // 只读受保护的数据成员
+    const std::unordered_map<int, std::unordered_set<int>>& getAdj() const { return adj; }
+    const std::unordered_map<int, int>& getDegrees() const { return degrees; }
+    const std::vector<std::unordered_set<int>>& getOrderedNodes() const { return orderedNodes; }
+    int getMinDegree() const { return minDegree; }
+    int getMaxDegree() const { return maxDegree; }
+    int getm() const { return m; }
+    int getn() const { return n; }
+    int getN() const { return N; }
 
 protected:
-    std::unordered_map<int, std::unordered_set<int>> adj; // 图的邻接表表示：节点 ID 和其相邻节点
+    // 图的邻接表表示：节点 ID 和其相邻节点
+    std::unordered_map<int, std::unordered_set<int>> adj;
 
-    std::unordered_map<int, int> degrees; // 图中节点的度
+    // 图中节点的度
+    std::unordered_map<int, int> degrees;
 
-    std::vector<std::unordered_set<int>> orderedNodes; // 表示具有相同度的节点的集合的向量,key为degree
+    // 表示具有相同度的节点的集合的向量,key为degree
+    std::vector<std::unordered_set<int>> orderedNodes;
 
-    int minimumDegree; // 图中所有节点的最小度
+    // 图中所有节点的最小度
+    int minDegree;
 
-    int Dmax; // 图中所有节点的最大度
+    // 图中所有节点的最大度
+    int maxDegree;
 
-    int m; // 图的边数
+    // 图的边数
+    int m;
 
-    int n; // 图的点数
+    // 图的点数
+    int n;
 
-    int N; // 图中所有点的最大值
-
+    // 图中所有点的最大值
+    int N;
 };
 
 #endif
