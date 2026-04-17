@@ -119,3 +119,11 @@ csp.exe <datasetPath> <experimentName> <randomQueryCount> <randomSeed> <queryNod
 ./build/Debug/csp.exe data/raw/email-Eu-core.txt global 5 123
 ```
 
+---
+
+## 8. Git 提交规范
+
+为了后续提交更规范、便于回溯，建议配合阅读：
+
+- `GIT_WORKFLOW.md`
+
