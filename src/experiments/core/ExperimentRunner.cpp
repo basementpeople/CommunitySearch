@@ -1,5 +1,6 @@
 #include "experiments/core/ExperimentRunner.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -11,6 +12,7 @@
 #include <chrono>
 
 #include "experiments/core/SingleQueryExperiment.h"
+#include "experiments/final/FinalCompareExperiment.h"
 #include "experiments/multi_query/MultiQueryMinCompareExperiment.h"
 #include "SharingIndex.h"
 #include "TreeIndex.h"
@@ -25,6 +27,9 @@ std::string defaultCsvPathForExperiment(const std::string& name) {
     }
     if (name == "retrieval") {
         return std::string(kOutputDir) + "single_query\\retrieval_result.csv";
+    }
+    if (name == "k-global") {
+        return std::string(kOutputDir) + "single_query\\k_global_result.csv";
     }
     if (name == "greedy") {
         return std::string(kOutputDir) + "single_query\\greedy_result.csv";
@@ -43,6 +48,12 @@ std::string defaultCsvPathForExperiment(const std::string& name) {
     }
     if (name == "multi_query_min_compare") {
         return std::string(kOutputDir) + "multi_query\\multi_query_min_compare_result.csv";
+    }
+    if (name == "final_csp_three_compare") {
+        return std::string(kOutputDir) + "final\\final_csp_three_compare_result.csv";
+    }
+    if (name == "final_csp_four_compare") {
+        return std::string(kOutputDir) + "final\\final_csp_four_compare_result.csv";
     }
     return std::string(kOutputDir) + "single_query\\global_result.csv";
 }
@@ -362,6 +373,22 @@ void RunExperiment(const std::string& experimentName, Graph& graph, int randomQu
         return;
     }
 
+    if (experimentName == "final_csp_three_compare") {
+        const std::string path = defaultCsvPathForExperiment(experimentName);
+        ensureOutputDirectory(path);
+        std::cout << "Output CSV: " << path << std::endl;
+        RunFinalCspCompareExperiment(graph, randomQueryCount, queryNodeCount, randomSeed, path, false);
+        return;
+    }
+
+    if (experimentName == "final_csp_four_compare") {
+        const std::string path = defaultCsvPathForExperiment(experimentName);
+        ensureOutputDirectory(path);
+        std::cout << "Output CSV: " << path << std::endl;
+        RunFinalCspCompareExperiment(graph, randomQueryCount, queryNodeCount, randomSeed, path, true);
+        return;
+    }
+
     query_nodes query = buildSingleQuery(graph, randomQueryCount, randomSeed);
     if (query.empty()) {
         std::cout << "Empty query, skip." << std::endl;
@@ -373,6 +400,15 @@ void RunExperiment(const std::string& experimentName, Graph& graph, int randomQu
         ensureOutputDirectory(path);
         std::cout << "Output CSV: " << path << std::endl;
         RunRetrievalShellExperiment(graph, query, path);
+        return;
+    }
+
+    if (experimentName == "k-global") {
+        const std::string path = defaultCsvPathForExperiment("k-global");
+        ensureOutputDirectory(path);
+        const int kCount = (queryNodeCount > 0) ? queryNodeCount : std::max(1, static_cast<int>(query.size()));
+        std::cout << "Output CSV: " << path << std::endl;
+        RunKGlobalSearchExperiment(graph, query, kCount, path);
         return;
     }
 

@@ -160,11 +160,13 @@ std::unordered_set<int> Graph::kGlobalsearch(const query_nodes& queryNodes, int 
         }
     }
 
+    // 按距离分层，存储每个距离的节点
     std::map<int, std::vector<int>> levelNodes;
     for (const auto& pair : dist) {
         levelNodes[pair.second].push_back(pair.first);
     }
 
+    // 从距离最小的层开始，逐层扩展，直到满足kCount为止
     std::unordered_set<int> selected;
     for (const auto& level : levelNodes) {
         selected.insert(level.second.begin(), level.second.end());

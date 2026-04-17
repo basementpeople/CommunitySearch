@@ -22,6 +22,9 @@
     <ClCompile Include="D:\mySecre\workspace\CommunitySearch\src\experiments\core\SingleQueryExperiment.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="D:\mySecre\workspace\CommunitySearch\src\experiments\final\FinalCompareExperiment.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="D:\mySecre\workspace\CommunitySearch\src\experiments\multi_query\MultiQueryMinCompareExperiment.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

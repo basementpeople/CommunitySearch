@@ -165,37 +165,34 @@ std::unordered_set<int> SharingIndex::batchsearch(query_group& group) {
                 queryToResult[q] = ans;
                 listToCodes[0].erase(q);
                 // 移除break，让所有查询都能得到结果
-            }
-            else {
+            } else {
                 // 检查标记
                 bool flag = true;
+                bool k_flag = true;
                 for (auto& com : H) {
                     for (auto& tmp : codeToMasks[q]) {
                         if (comToMasks[com].find(tmp) == comToMasks[com].end()) {
                             flag = false;
-                            if (codeToK[q] > 1) {
-                                codeToK[q]--;
-                            }
                             break;
                         }
                     }
                     if (flag) {
                         // 得到结果
-                        queryToResult[q] = getchnodes_2(*H.begin(), k_count);
+                        queryToResult[q] = getchnodes_2(com, k_count);
                         codeToK[q] = k_count;
-                        codeToCom[q] = *H.begin();
+                        codeToCom[q] = com;
                         ans.insert(queryToResult[q].begin(), queryToResult[q].end());
                         queryToResult[q] = ans;
                         // 维护变量
                         listToCodes[0].erase(q);
+                        k_flag = false;
                         break;
-                    }
-                    else {
-                        break;
+                    } else {
+                        flag = true;
                     }
                 }
-                if (!flag) {
-                    // std::cout << "查询 " << q << " 标记检查失败" << std::endl;
+                if (codeToK[q] > 1 && k_flag) {
+                    codeToK[q]--;
                 }
             }
         }
@@ -228,9 +225,11 @@ std::unordered_set<int> SharingIndex::batchsearch(query_group& group) {
                 for (int comp_id : shellToComs[k]) {
                     if (comToNodes[comp_id].find(node) != comToNodes[comp_id].end()) {
                         Hp.insert(comp_id);
-                    }
-                    for (auto& tmp : Q[node]) {
-                        codeToMasks[tmp].insert(comToMasks[comp_id].begin(), comToMasks[comp_id].end());
+
+                        // 4.17修改
+                        for (auto& tmp : Q[node]) {
+                            codeToMasks[tmp].insert(comToMasks[comp_id].begin(), comToMasks[comp_id].end());
+                        }
                     }
                 }
 
@@ -262,32 +261,31 @@ std::unordered_set<int> SharingIndex::batchsearch(query_group& group) {
                 else {
                     // 检查标记
                     bool flag = true;
+                    bool k_flag = true;
                     for (auto& com : H) {
                         for (auto& tmp : codeToMasks[q]) {
                             if (comToMasks[com].find(tmp) == comToMasks[com].end()) {
                                 flag = false;
-                                if (codeToK[q] > 1) {
-                                    codeToK[q]--;
-                                }
                                 break;
                             }
                         }
                         if (flag) {
                             // 得到结果
-                            queryToResult[q] = getchnodes_2(*H.begin(), k_count);
+                            queryToResult[q] = getchnodes_2(com, k_count);
                             codeToK[q] = k_count;
-                            codeToCom[q] = *H.begin();
+                            codeToCom[q] = com;
                             ans.insert(queryToResult[q].begin(), queryToResult[q].end());
                             queryToResult[q] = ans;
                             // 维护变量
                             listToCodes[0].erase(q);
-                        }
-                        else {
+                            k_flag = false;
                             break;
+                        } else {
+                            flag = true;
                         }
                     }
-                    if (!flag) {
-                        // std::cout << "k=" << k << " 查询 " << q << " 标记检查失败" << std::endl;
+                    if (codeToK[q] > 1 && k_flag) {
+                        codeToK[q]--;
                     }
                 }
             }
@@ -378,26 +376,28 @@ std::unordered_set<int> SharingIndex::batchsearchRough(query_group& group) {
                 listToCodes[0].erase(q);
             } else {
                 bool flag = true;
+                bool k_flag = true;
                 for (auto& com : H) {
                     for (auto& tmp : codeToMasks[q]) {
                         if (comToMasks[com].find(tmp) == comToMasks[com].end()) {
                             flag = false;
-                            if (codeToK[q] > 1) {
-                                codeToK[q]--;
-                            }
                             break;
                         }
                     }
                     if (flag) {
-                        queryToResult[q] = getNodesFromCom(*H.begin());
+                        queryToResult[q] = getNodesFromCom(com);
                         codeToK[q] = k;
-                        codeToCom[q] = *H.begin();
+                        codeToCom[q] = com;
                         ans.insert(queryToResult[q].begin(), queryToResult[q].end());
                         listToCodes[0].erase(q);
+                        k_flag = false;
                         break;
                     } else {
-                        break;
+                        flag = true;
                     }
+                }
+                if (codeToK[q] > 1 && k_flag) {
+                    codeToK[q]--;
                 }
             }
         }
@@ -426,9 +426,10 @@ std::unordered_set<int> SharingIndex::batchsearchRough(query_group& group) {
                 for (int comp_id : shellToComs[k]) {
                     if (comToNodes[comp_id].find(node) != comToNodes[comp_id].end()) {
                         Hp.insert(comp_id);
-                    }
-                    for (auto& tmp : Q[node]) {
-                        codeToMasks[tmp].insert(comToMasks[comp_id].begin(), comToMasks[comp_id].end());
+
+                        for (auto& tmp : Q[node]) {
+                            codeToMasks[tmp].insert(comToMasks[comp_id].begin(), comToMasks[comp_id].end());
+                        }
                     }
                 }
 
@@ -454,25 +455,28 @@ std::unordered_set<int> SharingIndex::batchsearchRough(query_group& group) {
                     listToCodes[0].erase(q);
                 } else {
                     bool flag = true;
+                    bool k_flag = true;
                     for (auto& com : H) {
                         for (auto& tmp : codeToMasks[q]) {
                             if (comToMasks[com].find(tmp) == comToMasks[com].end()) {
                                 flag = false;
-                                if (codeToK[q] > 1) {
-                                    codeToK[q]--;
-                                }
                                 break;
                             }
                         }
                         if (flag) {
-                            queryToResult[q] = getNodesFromCom(*H.begin());
+                            queryToResult[q] = getNodesFromCom(com);
                             codeToK[q] = k;
-                            codeToCom[q] = *H.begin();
+                            codeToCom[q] = com;
                             ans.insert(queryToResult[q].begin(), queryToResult[q].end());
                             listToCodes[0].erase(q);
-                        } else {
+                            k_flag = false;
                             break;
+                        } else {
+                            flag = true;
                         }
+                    }
+                    if (codeToK[q] > 1 && k_flag) {
+                        codeToK[q]--;
                     }
                 }
             }

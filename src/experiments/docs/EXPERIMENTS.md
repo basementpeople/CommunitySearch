@@ -44,7 +44,7 @@
 示例：
 
 ```bash
-csp.exe data/raw/email-Eu-core.txt batchsearch 20 42 6
+csp.exe data/raw/email-Eu-core.txt "batchsearch" 20 42 6
 ```
 
 含义：跑 `batchsearch`，生成 20 组查询，每组 6 个点，种子 42。
@@ -60,6 +60,11 @@ csp.exe data/raw/email-Eu-core.txt batchsearch 20 42 6
 - `retrieval`
   - 单查询 `retrievalShellStruct`。
   - 输出：`data\output\single_query\retrieval_result.csv`
+
+- `k-global`
+  - 单查询 `kGlobalsearch(query, kCount)`。
+  - `kCount` 从命令行第 5 个参数 `queryNodeCount` 读取；若不传则默认使用查询点个数。
+  - 输出：`data\output\single_query\k_global_result.csv`
 
 - `greedy`
   - 单查询 `greedyConnection`（通常依赖 retrieval 结果）。
@@ -105,6 +110,32 @@ csp.exe data/raw/email-Eu-core.txt batchsearch 20 42 6
       - `..._fast_detail.csv`
       - `..._greedy_loop_detail.csv`
 
+- `final_csp_three_compare`
+  - 最终展示用三方法对比（统一查询组）：
+    - `retrieval_loop`
+    - `batchsearch`
+    - `batchsearch_rough`
+  - 输出（独立目录）：
+    - 汇总：`data\output\final\final_csp_three_compare_result.csv`
+    - 方法明细：
+      - `..._retrieval_loop_detail.csv`
+      - `..._batchsearch_detail.csv`
+      - `..._batchsearch_rough_detail.csv`
+
+- `final_csp_four_compare`
+  - 最终展示用四方法对比（统一查询组）：
+    - `global_loop`
+    - `retrieval_loop`
+    - `batchsearch`
+    - `batchsearch_rough`
+  - 输出（独立目录）：
+    - 汇总：`data\output\final\final_csp_four_compare_result.csv`
+    - 方法明细：
+      - `..._global_loop_detail.csv`
+      - `..._retrieval_loop_detail.csv`
+      - `..._batchsearch_detail.csv`
+      - `..._batchsearch_rough_detail.csv`
+
 - `batchmin` / `h0` / `h` / `h1` / `h2` / `compare`
   - 历史 batch 与对比实验路径。
   - 输出文件在 `ExperimentRunner.cpp` 的 `defaultCsvPathForExperiment(...)` 中可查。
@@ -120,43 +151,61 @@ csp.exe
 - **单查询随机化（例如 retrieval，随机 5 点）**
 
 ```bash
-csp.exe data/raw/email-Eu-core.txt retrieval 5 123
+csp.exe data/raw/email-Eu-core.txt "retrieval" 5 123
+```
+
+- **单查询 k-global（随机 5 点，kCount=80）**
+
+```bash
+csp.exe data/raw/email-Eu-core.txt "k-global" 5 123 80
 ```
 
 - **多查询 batchsearch（20 组，每组 6 点）**
 
 ```bash
-csp.exe data/raw/email-Eu-core.txt batchsearch 20 123 6
+csp.exe data/raw/email-Eu-core.txt "batchsearch" 20 123 6
 ```
 
 - **多查询 rough 版（同参数）**
 
 ```bash
-csp.exe data/raw/email-Eu-core.txt batchsearch_rough 20 123 6
+csp.exe data/raw/email-Eu-core.txt "batchsearch_rough" 20 123 6
 ```
 
 - **多查询四方法对比**
 
 ```bash
-csp.exe data/raw/email-Eu-core.txt multi_query_compare 20 123 6
+csp.exe data/raw/email-Eu-core.txt "multi_query_compare" 20 123 6
 ```
 
 - **多查询最小化四方法对比**
 
 ```bash
-csp.exe data/raw/email-Eu-core.txt multi_query_min_compare 20 123 6
+csp.exe data/raw/email-Eu-core.txt "multi_query_min_compare" 20 123 6
 ```
 
 - **多查询最小化（手动指定相似度阈值）**
 
 ```bash
-csp.exe data/raw/email-Eu-core.txt multi_query_min_compare 20 123 6 0.15
+csp.exe data/raw/email-Eu-core.txt "multi_query_min_compare" 20 123 6 0.15
 ```
 
 - **多查询最小化（启用 legacy 查询构造）**
 
 ```bash
-csp.exe data/raw/email-Eu-core.txt multi_query_min_compare 20 123 6 0.15 1 1 2 3
+csp.exe data/raw/email-Eu-core.txt "multi_query_min_compare" 20 123 6 0.15 1 1 2 3
+```
+
+- **最终展示三方法对比**
+
+```bash
+csp.exe data/raw/email-Eu-core.txt "final_csp_three_compare" 20 123 6
+```
+
+- **最终展示四方法对比**
+
+```bash
+csp.exe data/raw/email-Eu-core.txt "final_csp_four_compare" 20 123 6
 ```
 
 ## 5) 输出字段解释（多查询对比）

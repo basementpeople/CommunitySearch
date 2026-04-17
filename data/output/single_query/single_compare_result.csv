@@ -1,4 +1,0 @@
-Method,TimeSec,ResultSize,K,DetailCsv
-global,4.936,287,27,data\output\single_query\single_compare_result_global.csv
-retrieval,0,287,27,data\output\single_query\single_compare_result_retrieval.csv
-greedy,0.77,284,27,data\output\single_query\single_compare_result_greedy.csv

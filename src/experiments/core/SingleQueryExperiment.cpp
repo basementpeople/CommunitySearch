@@ -60,6 +60,16 @@ SingleQueryRunResult RunGlobal(Graph& graph, const query_nodes& query) {
     return runResult;
 }
 
+SingleQueryRunResult RunKGlobal(Graph& graph, const query_nodes& query, int kCount) {
+    SingleQueryRunResult runResult;
+    const clock_t begin = clock();
+    runResult.resultNodes = graph.kGlobalsearch(query, kCount);
+    const clock_t end = clock();
+    runResult.elapsedSec = static_cast<double>(end - begin) / CLOCKS_PER_SEC;
+    runResult.k = ComputeMinDegree(graph, runResult.resultNodes);
+    return runResult;
+}
+
 SingleQueryRunResult RunRetrieval(Graph& graph, const query_nodes& query) {
     SingleQueryRunResult runResult;
     TreeIndex index(graph);
@@ -103,6 +113,14 @@ void RunGlobalSearchExperiment(Graph& graph, const query_nodes& query, const std
     const SingleQueryRunResult result = RunGlobal(graph, query);
     std::cout << "Global search elapsed: " << result.elapsedSec << "s" << std::endl;
     std::cout << "Result size: " << result.resultNodes.size() << ", k: " << result.k << std::endl;
+    WriteSingleQueryDetailCsv(outputCsvPath, query, result);
+}
+
+void RunKGlobalSearchExperiment(Graph& graph, const query_nodes& query, int kCount, const std::string& outputCsvPath) {
+    const SingleQueryRunResult result = RunKGlobal(graph, query, kCount);
+    std::cout << "k-global search elapsed: " << result.elapsedSec << "s" << std::endl;
+    std::cout << "Result size: " << result.resultNodes.size() << ", k: " << result.k
+              << ", k_count: " << kCount << std::endl;
     WriteSingleQueryDetailCsv(outputCsvPath, query, result);
 }
 

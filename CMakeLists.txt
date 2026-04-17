@@ -19,6 +19,7 @@ set(CSP_SOURCES
   src/graph/VertexScore.cpp
   src/experiments/core/ExperimentRunner.cpp
   src/experiments/core/SingleQueryExperiment.cpp
+  src/experiments/final/FinalCompareExperiment.cpp
   src/experiments/multi_query/MultiQueryMinCompareExperiment.cpp
 )
 

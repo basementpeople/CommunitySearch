@@ -5,4 +5,5 @@ D:\mySecre\workspace\CommunitySearch\src\graph\SharingIndex.cpp;D:\mySecre\works
 D:\mySecre\workspace\CommunitySearch\src\graph\VertexScore.cpp;D:\mySecre\workspace\CommunitySearch\build\csp.dir\Debug\VertexScore.obj
 D:\mySecre\workspace\CommunitySearch\src\experiments\core\ExperimentRunner.cpp;D:\mySecre\workspace\CommunitySearch\build\csp.dir\Debug\ExperimentRunner.obj
 D:\mySecre\workspace\CommunitySearch\src\experiments\core\SingleQueryExperiment.cpp;D:\mySecre\workspace\CommunitySearch\build\csp.dir\Debug\SingleQueryExperiment.obj
+D:\mySecre\workspace\CommunitySearch\src\experiments\final\FinalCompareExperiment.cpp;D:\mySecre\workspace\CommunitySearch\build\csp.dir\Debug\FinalCompareExperiment.obj
 D:\mySecre\workspace\CommunitySearch\src\experiments\multi_query\MultiQueryMinCompareExperiment.cpp;D:\mySecre\workspace\CommunitySearch\build\csp.dir\Debug\MultiQueryMinCompareExperiment.obj
