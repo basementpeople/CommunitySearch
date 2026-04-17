@@ -80,6 +80,14 @@ git pull
 git branch -d feat/your-change
 ```
 
+如果 GitHub 上也想清理远程分支，可在 PR 页面点 **Delete branch**，或本地执行：
+```bash
+git push origin --delete feat/add_md
+```
+
+  
+
+
 ## 6. 什么时候可以直接提交主分支
 
 以下场景可酌情直接提交（仍建议谨慎）：
@@ -115,3 +123,4 @@ git remote -v
 - 适配你项目的提交 message 模板
 - 常见报错排查（如冲突、推送被拒绝、分支落后）
 - PR 描述模板（便于自己回顾或团队协作）
+
