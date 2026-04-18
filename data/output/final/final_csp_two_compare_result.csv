@@ -1,3 +1,0 @@
-Method,TimeSec,TotalResultSize,AvgResultSize,DetailCsv
-retrieval_loop,0.17,435959,871,data\output\final\final_csp_two_compare_result_retrieval_loop_detail.csv
-batchsearch_rough,0.187,435959,871,data\output\final\final_csp_two_compare_result_batchsearch_rough_detail.csv

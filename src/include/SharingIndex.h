@@ -12,7 +12,7 @@
 #include "HashUtils.h"
 
 extern double simi;
-extern double time_cluster, time_1, time_2, time_3, time_4, clu_1;
+extern double time_cluster, time_1, time_2, time_3, time_4, clu_1, clu_2;
 
 class SharingIndex : public TreeIndex {
 public:

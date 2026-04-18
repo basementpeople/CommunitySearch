@@ -55,6 +55,9 @@ std::string defaultCsvPathForExperiment(const std::string& name) {
     if (name == "final_csp_four_compare") {
         return std::string(kOutputDir) + "final\\final_csp_four_compare_result.csv";
     }
+    if (name == "final_min_csp_simi_sweep") {
+        return std::string(kOutputDir) + "final\\final_min_csp_simi_sweep_result.csv";
+    }
     return std::string(kOutputDir) + "single_query\\global_result.csv";
 }
 
@@ -386,6 +389,15 @@ void RunExperiment(const std::string& experimentName, Graph& graph, int randomQu
         ensureOutputDirectory(path);
         std::cout << "Output CSV: " << path << std::endl;
         RunFinalCspCompareExperiment(graph, randomQueryCount, queryNodeCount, randomSeed, path, true);
+        return;
+    }
+
+    if (experimentName == "final_min_csp_simi_sweep") {
+        const std::string path = defaultCsvPathForExperiment(experimentName);
+        ensureOutputDirectory(path);
+        std::cout << "Output CSV: " << path << std::endl;
+        RunFinalMinCspSimiSweepExperiment(graph, randomQueryCount, queryNodeCount, randomSeed, path,
+                                          useLegacyQueryBuilder, shift1, shift2, beginPickCount);
         return;
     }
 

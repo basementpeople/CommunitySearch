@@ -16,7 +16,7 @@
 #include "TreeIndex.h"
 
 extern double simi;
-extern double time_cluster, time_1, time_2, time_3, time_4, clu_1;
+extern double time_cluster, time_1, time_2, time_3, time_4, clu_1, clu_2;
 
 namespace {
 
@@ -31,6 +31,7 @@ struct MethodStats {
     double stageSecondClusteringSec = 0.0;
     double stageGreedySimplySec = 0.0;
     std::size_t firstClusterCount = 0;
+    std::size_t secondClusterCount = 0; // Fast: sum of CSP sub-cluster counts; else 0
     std::size_t unionNodeCount = 0;
     std::size_t totalResultNodeCount = 0;
     std::size_t avgResultNodeCount = 0;
@@ -96,6 +97,7 @@ query_group BuildRandomQueryGroup(Graph& graph, int queryGroupCount, int querySi
     return group;
 }
 
+// legacy 模式
 query_group BuildLegacyStyleQueryGroup(Graph& graph, int queryGroupCount, int querySize, unsigned long long seed,
                                        int shift1, int shift2, int beginPickCount) {
     std::vector<int> nodes;
@@ -119,6 +121,7 @@ query_group BuildLegacyStyleQueryGroup(Graph& graph, int queryGroupCount, int qu
     std::mt19937_64 rng(seed);
     std::shuffle(nodes.begin(), nodes.end(), rng);
 
+    // 生成起始点候选集
     std::vector<int> beginCandidates;
     beginCandidates.reserve(nodes.size());
     std::unordered_set<int> visitedAroundBegin;
@@ -155,6 +158,7 @@ query_group BuildLegacyStyleQueryGroup(Graph& graph, int queryGroupCount, int qu
         beginCandidates = nodes;
     }
 
+    // 生成查询组
     const int actualBeginPickCount = std::max(1, beginPickCount);
     for (int i = 0; i < queryGroupCount; ++i) {
         std::vector<int> localBegin = beginCandidates;
@@ -264,6 +268,15 @@ void WriteMethodDetailCsv(const std::string& path, const query_group& group, con
     out.close();
 }
 
+void AppendSimiSweepMethodDetailRows(std::ofstream& out, int similarityPct, double similarity, double batchTimeSec,
+                                     const query_group& group, const MethodRunResult& result) {
+    for (std::size_t i = 0; i < result.records.size() && i < group.size(); ++i) {
+        out << similarityPct << "," << similarity << "," << batchTimeSec << "," << result.records[i].code << ","
+            << QueryToString(group[i]) << "," << result.records[i].resultSize << "," << result.records[i].k << ","
+            << result.records[i].componentId << "\n";
+    }
+}
+
 MethodRunResult RunPrecise(Graph& graph, query_group group) {
     MethodRunResult runResult;
     SharingIndex index(graph);
@@ -296,6 +309,7 @@ MethodRunResult RunPrecise(Graph& graph, query_group group) {
     runResult.stats.stageSecondClusteringSec = 0.0;
     runResult.stats.stageGreedySimplySec = time_4;
     runResult.stats.firstClusterCount = static_cast<std::size_t>(clu_1);
+    runResult.stats.secondClusterCount = 0;
     runResult.stats.unionNodeCount = unionNodes.size();
     FinalizeStats(runResult.stats, group);
     return runResult;
@@ -332,6 +346,7 @@ MethodRunResult RunFast(Graph& graph, query_group group) {
     runResult.stats.stageSecondClusteringSec = time_3;
     runResult.stats.stageGreedySimplySec = time_4;
     runResult.stats.firstClusterCount = static_cast<std::size_t>(clu_1);
+    runResult.stats.secondClusterCount = static_cast<std::size_t>(clu_2);
     runResult.stats.unionNodeCount = unionNodes.size();
     FinalizeStats(runResult.stats, group);
     return runResult;
@@ -456,6 +471,119 @@ void RunMultiQueryMinCompareExperiment(Graph& graph, int queryGroupCount, int qu
               << "  greedy_loop   : time=" << greedyLoop.stats.elapsedSec << "s" << std::endl;
     std::cout << "Output CSV: " << outputCsvPath << std::endl;
     std::cout << "===== end test_multi_query_min_compare =====\n" << std::endl;
+}
+
+void RunFinalMinCspSimiSweepExperiment(Graph& graph, int queryGroupCount, int queryNodeCount,
+                                      unsigned long long randomSeed, const std::string& outputCsvPath,
+                                      bool useLegacyQueryBuilder, int shift1, int shift2, int beginPickCount) {
+    const int actualGroupCount = (queryGroupCount > 0) ? queryGroupCount : kDefaultQueryGroupCount;
+    const int actualQuerySize = (queryNodeCount > 0) ? queryNodeCount : kDefaultQuerySize;
+    unsigned long long seed = randomSeed;
+    if (seed == 0) {
+        std::random_device rd;
+        seed = (static_cast<unsigned long long>(rd()) << 32) ^ static_cast<unsigned long long>(rd());
+    }
+
+    std::cout << "\n===== final_min_csp_simi_sweep =====" << std::endl;
+    std::cout << "[Config] \u67e5\u8be2\u7ec4\u6570\u91cf=" << actualGroupCount
+              << ", \u6bcf\u7ec4\u70b9\u6570=" << actualQuerySize << ", \u968f\u673a\u79cd\u5b50=" << seed
+              << std::endl;
+    std::cout << "[Config] query_builder=" << (useLegacyQueryBuilder ? "legacy" : "random");
+    if (useLegacyQueryBuilder) {
+        std::cout << ", shift_1=" << shift1 << ", shift_2=" << shift2 << ", begin_pick_count=" << beginPickCount;
+    }
+    std::cout << std::endl;
+    std::cout << "[Config] similarity sweep: 0%..90% step 10% (simi 0.0..0.9 step 0.1)" << std::endl;
+
+    query_group group =
+        useLegacyQueryBuilder ? BuildLegacyStyleQueryGroup(graph, actualGroupCount, actualQuerySize, seed, shift1,
+                                                           shift2, beginPickCount)
+                              : BuildRandomQueryGroup(graph, actualGroupCount, actualQuerySize, seed);
+    if (group.empty()) {
+        std::cout << "\u672a\u751f\u6210\u67e5\u8be2\uff0c\u53ef\u80fd\u662f\u56fe\u4e3a\u7a7a\u3002" << std::endl;
+        return;
+    }
+
+    auto resetStageTimers = []() {
+        time_cluster = time_1 = time_2 = time_3 = time_4 = 0.0;
+        clu_1 = clu_2 = 0.0;
+    };
+
+    MethodRunResult greedyOnce = RunGreedyLoop(graph, group);
+
+    const std::string preciseDetailPath = AppendSuffixBeforeCsv(outputCsvPath, "precise_detail");
+    const std::string fastDetailPath = AppendSuffixBeforeCsv(outputCsvPath, "fast_detail");
+    const std::string greedyDetailPath = AppendSuffixBeforeCsv(outputCsvPath, "greedy_loop_detail");
+
+    std::ofstream preciseDetail(preciseDetailPath);
+    std::ofstream fastDetail(fastDetailPath);
+    if (!preciseDetail.is_open() || !fastDetail.is_open()) {
+        std::cerr << "\u65e0\u6cd5\u6253\u5f00\u660e\u7ec6 CSV\u3002" << std::endl;
+        return;
+    }
+    preciseDetail << "SimilarityPct,Similarity,TimeSec,Code,QueryNodes,ResultSize,K,ComponentId\n";
+    fastDetail << "SimilarityPct,Similarity,TimeSec,Code,QueryNodes,ResultSize,K,ComponentId\n";
+
+    std::ofstream out(outputCsvPath);
+    if (!out.is_open()) {
+        std::cerr << "\u65e0\u6cd5\u6253\u5f00\u8f93\u51fa CSV: " << outputCsvPath << std::endl;
+        return;
+    }
+    out << "SimilarityPct,Similarity,BatchminPrecise_TimeSec,BatchminPrecise_UnionNodeCount,"
+           "BatchminPrecise_TotalResultNodeCount,BatchminFast_TimeSec,BatchminFast_UnionNodeCount,"
+           "BatchminFast_TotalResultNodeCount,GreedyLoop_TimeSec,GreedyLoop_UnionNodeCount,"
+           "GreedyLoop_TotalResultNodeCount\n";
+
+    for (int pct = 0; pct <= 90; pct += 10) {
+        const double s = static_cast<double>(pct) / 100.0;
+        simi = s;
+        resetStageTimers();
+        MethodRunResult precise = RunPrecise(graph, group);
+        resetStageTimers();
+        MethodRunResult fast = RunFast(graph, group);
+
+        AppendSimiSweepMethodDetailRows(preciseDetail, pct, s, precise.stats.elapsedSec, group, precise);
+        AppendSimiSweepMethodDetailRows(fastDetail, pct, s, fast.stats.elapsedSec, group, fast);
+
+        out << pct << "," << s << "," << precise.stats.elapsedSec << "," << precise.stats.unionNodeCount << ","
+            << precise.stats.totalResultNodeCount << "," << fast.stats.elapsedSec << "," << fast.stats.unionNodeCount
+            << "," << fast.stats.totalResultNodeCount << "," << greedyOnce.stats.elapsedSec << ","
+            << greedyOnce.stats.unionNodeCount << "," << greedyOnce.stats.totalResultNodeCount << "\n";
+
+        std::cout << "[simi=" << s << "] precise t=" << precise.stats.elapsedSec << "s"
+                  << " clusters_simi=" << precise.stats.firstClusterCount << ", fast t=" << fast.stats.elapsedSec
+                  << "s clusters_simi=" << fast.stats.firstClusterCount
+                  << " clusters_csp_sum=" << fast.stats.secondClusterCount
+                  << ", greedy t=" << greedyOnce.stats.elapsedSec << "s (constant across simi)" << std::endl;
+    }
+
+    preciseDetail.close();
+    fastDetail.close();
+
+    std::ofstream greedyDetail(greedyDetailPath);
+    if (!greedyDetail.is_open()) {
+        std::cerr << "\u65e0\u6cd5\u6253\u5f00 greedy \u660e\u7ec6 CSV: " << greedyDetailPath << std::endl;
+    } else {
+        greedyDetail << "SimilarityPct,Similarity,TimeSec,Code,QueryNodes,ResultSize,K,ComponentId\n";
+        for (std::size_t i = 0; i < greedyOnce.records.size() && i < group.size(); ++i) {
+            greedyDetail << "-,-," << greedyOnce.stats.elapsedSec << "," << greedyOnce.records[i].code << ","
+                         << QueryToString(group[i]) << "," << greedyOnce.records[i].resultSize << ","
+                         << greedyOnce.records[i].k << "," << greedyOnce.records[i].componentId << "\n";
+        }
+        greedyDetail.close();
+    }
+
+    out << "SUMMARY,seed=" << seed << ",query_group_count=" << actualGroupCount << ",query_size=" << actualQuerySize
+        << ",sweep=0pct_to_90pct_step_10pct,query_builder=" << (useLegacyQueryBuilder ? "legacy" : "random")
+        << ",detail_precise=" << preciseDetailPath << ",detail_fast=" << fastDetailPath
+        << ",detail_greedy=" << greedyDetailPath << "\n";
+    out.close();
+
+    std::cout << "Output CSV: " << outputCsvPath << std::endl;
+    std::cout << "Detail CSV: " << preciseDetailPath << std::endl;
+    std::cout << "Detail CSV: " << fastDetailPath << std::endl;
+    std::cout << "Detail CSV: " << greedyDetailPath << std::endl;
+    std::cout << "===== end final_min_csp_simi_sweep =====\n" << std::endl;
 }
 
 }  // namespace experiments

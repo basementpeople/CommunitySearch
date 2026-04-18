@@ -1,0 +1,10 @@
+^D:\MYSECRE\WORKSPACE\COMMUNITYSEARCH\BUILD\CMAKEFILES\FC489B0B94A7C0DBA3DC1D83F985508B\GENERATE.STAMP.RULE
+setlocal
+D:\mySecre\download\tool\Cmake\bin\cmake.exe -SD:/mySecre/workspace/CommunitySearch -BD:/mySecre/workspace/CommunitySearch/build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file D:/mySecre/workspace/CommunitySearch/build/CSP.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

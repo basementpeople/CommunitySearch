@@ -136,6 +136,20 @@ csp.exe data/raw/email-Eu-core.txt "batchsearch" 20 42 6
       - `..._batchsearch_detail.csv`
       - `..._batchsearch_rough_detail.csv`
 
+- `final_min_csp_simi_sweep`（min-CSP final 实验 1）
+  - 固定一批查询组，将聚类相似度阈值 `simi` 从 **0% 扫到 90%**（步长 **10%**，即 `simi = 0.0,0.1,...,0.9`），对比三种方法：
+    - `batchMinsearchPrecise`
+    - `batchMinsearchFast`
+    - 循环 `greedyConnection`（与 `multi_query_min_compare` 相同实现；**不依赖** `simi`，各行中 greedy 指标相同，仅便于与 Precise/Fast 同表对比）
+  - 查询构造与 `multi_query_min_compare` 一致：第 7～10 个参数可指定 legacy 与 `shift_1` / `shift_2` / `begin_pick_count`。
+  - 第 6 个参数 `similarityThreshold` 在扫频实验中**不使用**（可填任意占位值，例如 `0`）。
+  - 输出：
+    - 汇总：`data\output\final\final_min_csp_simi_sweep_result.csv`（每行一个相似度档位，宽表列出三方法的耗时与并集/总和规模，**不含** `AvgResultNodeCount`）
+    - 明细（与汇总同前缀）：
+      - `..._precise_detail.csv`：Precise 在每个 `simi` 下逐查询的 `TimeSec`（该档整批耗时，各行相同）、`ResultSize`、`K`、`ComponentId`
+      - `..._fast_detail.csv`：Fast，列同上
+      - `..._greedy_loop_detail.csv`：Greedy 与 `simi` 无关，`SimilarityPct`/`Similarity` 为 `-`，`TimeSec` 为整批 greedy 总耗时
+
 - `batchmin` / `h0` / `h` / `h1` / `h2` / `compare`
   - 历史 batch 与对比实验路径。
   - 输出文件在 `ExperimentRunner.cpp` 的 `defaultCsvPathForExperiment(...)` 中可查。
@@ -208,6 +222,18 @@ csp.exe data/raw/email-Eu-core.txt "final_csp_three_compare" 20 123 6
 csp.exe data/raw/email-Eu-core.txt "final_csp_four_compare" 20 123 6
 ```
 
+- **min-CSP final：相似度 0%～90% 扫频（三方法时间与结果规模）**
+
+```bash
+csp.exe data/raw/email-Eu-core.txt "final_min_csp_simi_sweep" 20 123 6 0
+```
+
+- **同上，启用 legacy 查询构造（参数与 multi_query_min_compare 对齐）**
+
+```bash
+csp.exe data/raw/email-Eu-core.txt "final_min_csp_simi_sweep" 20 123 6 0 1 1 2 3
+```
+
 ## 5) 输出字段解释（多查询对比）
 
 `batchsearch_result.csv` 与 `batchsearch_rough_result.csv` 的关键列：
@@ -245,6 +271,18 @@ csp.exe data/raw/email-Eu-core.txt "final_csp_four_compare" 20 123 6
 - `TotalResultNodeCount`：所有查询结果大小求和
 - `AvgResultNodeCount`：平均每查询结果大小
 - `DetailCsv`：该方法对应明细文件路径
+
+`final_min_csp_simi_sweep_result.csv` 的关键列：
+
+- `SimilarityPct` / `Similarity`：相似度档位（百分比与 `simi` 小数，例如 `50` 与 `0.5`）
+- `BatchminPrecise_*` / `BatchminFast_*` / `GreedyLoop_*`：各方法在该档位下的 `TimeSec`、`UnionNodeCount`、`TotalResultNodeCount`（**无**平均每查询列）
+- 末行 `SUMMARY`：种子、查询组数、每组点数、扫频说明、查询构造方式，以及三个明细 CSV 的路径字段 `detail_precise` / `detail_fast` / `detail_greedy`
+
+`*_precise_detail.csv` / `*_fast_detail.csv` / `*_greedy_loop_detail.csv` 关键列：
+
+- `SimilarityPct` / `Similarity`：greedy 明细中为 `-`（与 `simi` 无关）
+- `TimeSec`：该次运行中**整批**该方法的 wall 时间（秒）；明细中同一 `simi` 下各查询行重复同一 `TimeSec`
+- `Code`、 `QueryNodes`、 `ResultSize`、 `K`、 `ComponentId`：与 `multi_query_min_compare` 明细含义一致
 
 ## 6) 开发建议
 

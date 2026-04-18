@@ -516,6 +516,7 @@ void SharingIndex::batchMinsearchPrecise(query_group& group) {
     time_3 = 0;
     time_4 = 0;
     clu_1 = 0;
+    clu_2 = 0;
 
     // 第一步：根据相似度聚类
     const clock_t clusterBegin = std::clock();
@@ -576,6 +577,7 @@ void SharingIndex::batchMinsearchFast(query_group& group) {
     time_3 = 0;
     time_4 = 0;
     clu_1 = 0;
+    clu_2 = 0;
 
     // 第一步：根据相似度聚类
     const clock_t clusterBegin = std::clock();
@@ -618,6 +620,7 @@ void SharingIndex::batchMinsearchFast(query_group& group) {
         // 第四步：根据CSP结果，进行二次聚类
         const clock_t secondClusterBegin = std::clock();
         clusteringOnCSP(codes);
+        clu_2 += static_cast<double>(clusters_count);
         const clock_t secondClusterEnd = std::clock();
         time_3 += static_cast<double>(secondClusterEnd - secondClusterBegin) / CLOCKS_PER_SEC;
 

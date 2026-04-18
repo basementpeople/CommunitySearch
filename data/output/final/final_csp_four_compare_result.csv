@@ -1,5 +1,0 @@
-Method,TimeSec,TotalResultSize,AvgResultSize,DetailCsv
-global_loop,14.64,17987,899,data\output\final\final_csp_four_compare_result_global_loop_detail.csv
-retrieval_loop,0.007,17987,899,data\output\final\final_csp_four_compare_result_retrieval_loop_detail.csv
-batchsearch,0.005,17987,899,data\output\final\final_csp_four_compare_result_batchsearch_detail.csv
-batchsearch_rough,0.009,17987,899,data\output\final\final_csp_four_compare_result_batchsearch_rough_detail.csv

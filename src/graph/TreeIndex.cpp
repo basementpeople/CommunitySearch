@@ -864,9 +864,10 @@ std::unordered_set<int> TreeIndex::connectionStep(std::unordered_set<int>& H, co
 
 // 斯坦纳树的近似算法，prim，其实就是BFS
 query_nodes TreeIndex::steinerTree(std::unordered_set<int>& H, const query_nodes& terminals) {
-    std::vector<int> mstParent(N, -1); // MST 中的父节点
-    std::vector<bool> inMST(N, false); // 标记是否在 MST 中
-    std::vector<int> key(N, int_max_alter); // 每个节点的键值（最小边权重）
+    // N 为图中顶点编号最大值；节点 id 可能等于 N，故与 greedyStep 中 visited_vec 一致用 N+1。
+    std::vector<int> mstParent(N + 1, -1); // MST 中的父节点
+    std::vector<bool> inMST(N + 1, false); // 标记是否在 MST 中
+    std::vector<int> key(N + 1, int_max_alter); // 每个节点的键值（最小边权重）
     std::priority_queue<std::pair<int, int>, std::vector<std::pair<int, int>>, std::greater<>> pq; // 优先队列
 
     std::unordered_map<int, std::unordered_set<int>> adj_H;

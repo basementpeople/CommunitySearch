@@ -15,7 +15,7 @@ namespace {
 // 由各实验模块通过 extern 共享访问的全局实验状态。
 double simi = 0;
 double time_greedy = 0, time_steiner = 0, time_simple = 0;
-double time_cluster = 0, time_1 = 0, time_2 = 0, time_3 = 0, time_4 = 0, clu_1 = 0;
+double time_cluster = 0, time_1 = 0, time_2 = 0, time_3 = 0, time_4 = 0, clu_1 = 0, clu_2 = 0;
 query_group group;
 
 int shift_1 = 0;
