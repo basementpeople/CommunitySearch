@@ -1,5 +1,0 @@
-Method,TimeSec,UnionNodeCount,TotalResultNodeCount,AvgResultNodeCount,DetailCsv
-batchsearch,0.0038321,986,17987,899,data\output\multi_query\multi_query_compare_result_batchsearch_detail.csv
-batchsearch_rough,0.0081294,986,17987,899,data\output\multi_query\multi_query_compare_result_batchsearch_rough_detail.csv
-globalsearch_loop,12.9858,986,17987,899,data\output\multi_query\multi_query_compare_result_globalsearch_loop_detail.csv
-retrieval_loop,0.0069145,986,17987,899,data\output\multi_query\multi_query_compare_result_retrieval_loop_detail.csv

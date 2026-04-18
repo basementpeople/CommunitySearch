@@ -98,8 +98,15 @@ query_group BuildRandomQueryGroup(Graph& graph, int queryGroupCount, int querySi
 }
 
 // legacy 模式
+int ResolveBeginCandidatePoolCap(int beginCandidatePoolCap, int beginPickCount) {
+    if (beginCandidatePoolCap > 0) {
+        return beginCandidatePoolCap;
+    }
+    return std::max(1, beginPickCount) * 2;
+}
+
 query_group BuildLegacyStyleQueryGroup(Graph& graph, int queryGroupCount, int querySize, unsigned long long seed,
-                                       int shift1, int shift2, int beginPickCount) {
+                                       int shift1, int shift2, int beginPickCount, int beginCandidatePoolCap) {
     std::vector<int> nodes;
     nodes.reserve(static_cast<std::size_t>(graph.getn()));
     for (const auto& pair : graph.getAdj()) {
@@ -121,12 +128,14 @@ query_group BuildLegacyStyleQueryGroup(Graph& graph, int queryGroupCount, int qu
     std::mt19937_64 rng(seed);
     std::shuffle(nodes.begin(), nodes.end(), rng);
 
+    const int beginPoolTarget = ResolveBeginCandidatePoolCap(beginCandidatePoolCap, beginPickCount);
+
     // 生成起始点候选集
     std::vector<int> beginCandidates;
     beginCandidates.reserve(nodes.size());
     std::unordered_set<int> visitedAroundBegin;
     for (int node : nodes) {
-        if (static_cast<int>(beginCandidates.size()) >= std::max(1, beginPickCount) * 2) {
+        if (static_cast<int>(beginCandidates.size()) >= beginPoolTarget) {
             break;
         }
         if (visitedAroundBegin.find(node) != visitedAroundBegin.end()) {
@@ -158,14 +167,13 @@ query_group BuildLegacyStyleQueryGroup(Graph& graph, int queryGroupCount, int qu
         beginCandidates = nodes;
     }
 
-    // 生成查询组
-    const int actualBeginPickCount = std::max(1, beginPickCount);
+    // Build query groups from beginCandidates.
     for (int i = 0; i < queryGroupCount; ++i) {
         std::vector<int> localBegin = beginCandidates;
         std::shuffle(localBegin.begin(), localBegin.end(), rng);
         query_nodes query;
 
-        const int beginLimit = std::min<int>(actualBeginPickCount, static_cast<int>(localBegin.size()));
+        const int beginLimit = std::min<int>(std::max(1, beginPickCount), static_cast<int>(localBegin.size()));
         int minCore = std::numeric_limits<int>::max();
         int maxCore = std::numeric_limits<int>::min();
         for (int j = 0; j < beginLimit && static_cast<int>(query.size()) < querySize; ++j) {
@@ -277,6 +285,28 @@ void AppendSimiSweepMethodDetailRows(std::ofstream& out, int similarityPct, doub
     }
 }
 
+unsigned long long DeriveSeedForFixedSimiSweepSlot(unsigned long long baseSeed, int slotIndex) {
+    const auto k = static_cast<unsigned long long>(slotIndex + 1);
+    return baseSeed ^ (k * 0xD6E8FEB8663FD96AULL) ^ (k * k * 0x9E3779B97F4A7C15ULL);
+}
+
+void WriteSlotMethodDetailCsv(const std::string& path, int sweepSlotPct, unsigned long long derivedSeed, double estSim,
+                              double fixedClusteringSim, const query_group& group, const MethodRunResult& result) {
+    std::ofstream out(path);
+    if (!out.is_open()) {
+        return;
+    }
+    out << "SweepSlotPct,DerivedSeed,EstGroupSimilarity,FixedClusteringSim,TimeSec,Code,QueryNodes,ResultSize,K,"
+           "ComponentId\n";
+    for (std::size_t i = 0; i < result.records.size() && i < group.size(); ++i) {
+        out << sweepSlotPct << "," << derivedSeed << "," << estSim << "," << fixedClusteringSim << ","
+            << result.stats.elapsedSec << "," << result.records[i].code << "," << QueryToString(group[i]) << ","
+            << result.records[i].resultSize << "," << result.records[i].k << "," << result.records[i].componentId
+            << "\n";
+    }
+    out.close();
+}
+
 MethodRunResult RunPrecise(Graph& graph, query_group group) {
     MethodRunResult runResult;
     SharingIndex index(graph);
@@ -382,7 +412,7 @@ namespace experiments {
 void RunMultiQueryMinCompareExperiment(Graph& graph, int queryGroupCount, int queryNodeCount,
                                        unsigned long long randomSeed, const std::string& outputCsvPath,
                                        double similarityThreshold, bool useLegacyQueryBuilder, int shift1,
-                                       int shift2, int beginPickCount) {
+                                       int shift2, int beginPickCount, int beginCandidatePoolCap) {
     const int actualGroupCount = (queryGroupCount > 0) ? queryGroupCount : kDefaultQueryGroupCount;
     const int actualQuerySize = (queryNodeCount > 0) ? queryNodeCount : kDefaultQuerySize;
     unsigned long long seed = randomSeed;
@@ -398,14 +428,16 @@ void RunMultiQueryMinCompareExperiment(Graph& graph, int queryGroupCount, int qu
     std::cout << "[Config] query_builder=" << (useLegacyQueryBuilder ? "legacy" : "random");
     if (useLegacyQueryBuilder) {
         std::cout << ", shift_1=" << shift1 << ", shift_2=" << shift2
-                  << ", begin_pick_count=" << beginPickCount;
+                  << ", begin_pick_count=" << beginPickCount
+                  << ", begin_candidate_pool_cap=" << beginCandidatePoolCap
+                  << " (effective=" << ResolveBeginCandidatePoolCap(beginCandidatePoolCap, beginPickCount) << ")";
     }
     std::cout << std::endl;
 
     query_group group =
         useLegacyQueryBuilder
             ? BuildLegacyStyleQueryGroup(graph, actualGroupCount, actualQuerySize, seed, shift1, shift2,
-                                         beginPickCount)
+                                         beginPickCount, beginCandidatePoolCap)
             : BuildRandomQueryGroup(graph, actualGroupCount, actualQuerySize, seed);
     if (group.empty()) {
         std::cout << "\u672a\u751f\u6210\u67e5\u8be2\uff0c\u53ef\u80fd\u662f\u56fe\u4e3a\u7a7a\u3002" << std::endl;
@@ -452,7 +484,12 @@ void RunMultiQueryMinCompareExperiment(Graph& graph, int queryGroupCount, int qu
         << greedyLoop.stats.totalResultNodeCount << "," << greedyLoop.stats.avgResultNodeCount << ","
         << greedyDetailPath << "\n";
     out << "SUMMARY,seed=" << seed << ",query_group_count=" << actualGroupCount << ",query_size=" << actualQuerySize
-        << ",similarity_threshold=" << simi << ",-,-,-,-,-,-\n";
+        << ",similarity_threshold=" << simi;
+    if (useLegacyQueryBuilder) {
+        out << ",begin_candidate_pool_cap=" << beginCandidatePoolCap
+            << ",begin_candidates_target=" << ResolveBeginCandidatePoolCap(beginCandidatePoolCap, beginPickCount);
+    }
+    out << ",-,-,-,-,-,-\n";
     out.close();
 
     std::cout << "[Summary]\n"
@@ -475,7 +512,8 @@ void RunMultiQueryMinCompareExperiment(Graph& graph, int queryGroupCount, int qu
 
 void RunFinalMinCspSimiSweepExperiment(Graph& graph, int queryGroupCount, int queryNodeCount,
                                       unsigned long long randomSeed, const std::string& outputCsvPath,
-                                      bool useLegacyQueryBuilder, int shift1, int shift2, int beginPickCount) {
+                                      bool useLegacyQueryBuilder, int shift1, int shift2, int beginPickCount,
+                                      int beginCandidatePoolCap) {
     const int actualGroupCount = (queryGroupCount > 0) ? queryGroupCount : kDefaultQueryGroupCount;
     const int actualQuerySize = (queryNodeCount > 0) ? queryNodeCount : kDefaultQuerySize;
     unsigned long long seed = randomSeed;
@@ -490,14 +528,16 @@ void RunFinalMinCspSimiSweepExperiment(Graph& graph, int queryGroupCount, int qu
               << std::endl;
     std::cout << "[Config] query_builder=" << (useLegacyQueryBuilder ? "legacy" : "random");
     if (useLegacyQueryBuilder) {
-        std::cout << ", shift_1=" << shift1 << ", shift_2=" << shift2 << ", begin_pick_count=" << beginPickCount;
+        std::cout << ", shift_1=" << shift1 << ", shift_2=" << shift2 << ", begin_pick_count=" << beginPickCount
+                  << ", begin_candidate_pool_cap=" << beginCandidatePoolCap
+                  << " (effective=" << ResolveBeginCandidatePoolCap(beginCandidatePoolCap, beginPickCount) << ")";
     }
     std::cout << std::endl;
     std::cout << "[Config] similarity sweep: 0%..90% step 10% (simi 0.0..0.9 step 0.1)" << std::endl;
 
     query_group group =
         useLegacyQueryBuilder ? BuildLegacyStyleQueryGroup(graph, actualGroupCount, actualQuerySize, seed, shift1,
-                                                           shift2, beginPickCount)
+                                                           shift2, beginPickCount, beginCandidatePoolCap)
                               : BuildRandomQueryGroup(graph, actualGroupCount, actualQuerySize, seed);
     if (group.empty()) {
         std::cout << "\u672a\u751f\u6210\u67e5\u8be2\uff0c\u53ef\u80fd\u662f\u56fe\u4e3a\u7a7a\u3002" << std::endl;
@@ -574,8 +614,12 @@ void RunFinalMinCspSimiSweepExperiment(Graph& graph, int queryGroupCount, int qu
     }
 
     out << "SUMMARY,seed=" << seed << ",query_group_count=" << actualGroupCount << ",query_size=" << actualQuerySize
-        << ",sweep=0pct_to_90pct_step_10pct,query_builder=" << (useLegacyQueryBuilder ? "legacy" : "random")
-        << ",detail_precise=" << preciseDetailPath << ",detail_fast=" << fastDetailPath
+        << ",sweep=0pct_to_90pct_step_10pct,query_builder=" << (useLegacyQueryBuilder ? "legacy" : "random");
+    if (useLegacyQueryBuilder) {
+        out << ",begin_candidate_pool_cap=" << beginCandidatePoolCap
+            << ",begin_candidates_target=" << ResolveBeginCandidatePoolCap(beginCandidatePoolCap, beginPickCount);
+    }
+    out << ",detail_precise=" << preciseDetailPath << ",detail_fast=" << fastDetailPath
         << ",detail_greedy=" << greedyDetailPath << "\n";
     out.close();
 
@@ -584,6 +628,291 @@ void RunFinalMinCspSimiSweepExperiment(Graph& graph, int queryGroupCount, int qu
     std::cout << "Detail CSV: " << fastDetailPath << std::endl;
     std::cout << "Detail CSV: " << greedyDetailPath << std::endl;
     std::cout << "===== end final_min_csp_simi_sweep =====\n" << std::endl;
+}
+
+void RunFinalMinCspFixedSimiSeedSweepExperiment(Graph& graph, int queryGroupCount, int queryNodeCount,
+                                              unsigned long long randomSeed, const std::string& outputCsvPath,
+                                              double fixedClusteringSimi, bool useLegacyQueryBuilder, int shift1,
+                                              int shift2, int beginPickCount, int beginCandidatePoolCap) {
+    if (std::isnan(fixedClusteringSimi)) {
+        std::cerr << "[final_min_csp_fixed_simi_seed_sweep] fixedClusteringSimi (argv[6]) is required.\n";
+        return;
+    }
+
+    const int actualGroupCount = (queryGroupCount > 0) ? queryGroupCount : kDefaultQueryGroupCount;
+    const int actualQuerySize = (queryNodeCount > 0) ? queryNodeCount : kDefaultQuerySize;
+    unsigned long long baseSeed = randomSeed;
+    if (baseSeed == 0) {
+        std::random_device rd;
+        baseSeed = (static_cast<unsigned long long>(rd()) << 32) ^ static_cast<unsigned long long>(rd());
+    }
+
+    std::cout << "\n===== final_min_csp_fixed_simi_seed_sweep =====" << std::endl;
+    std::cout << "[Config] query_group_count=" << actualGroupCount << ", query_size=" << actualQuerySize
+              << ", base_random_seed=" << baseSeed << std::endl;
+    std::cout << "[Config] fixed_clustering_simi=" << fixedClusteringSimi
+              << " (batchMinsearch clustering threshold, constant across slots)" << std::endl;
+    std::cout << "[Config] query_builder=" << (useLegacyQueryBuilder ? "legacy" : "random");
+    if (useLegacyQueryBuilder) {
+        std::cout << ", shift_1=" << shift1 << ", shift_2=" << shift2 << ", begin_pick_count=" << beginPickCount
+                  << ", begin_candidate_pool_cap=" << beginCandidatePoolCap
+                  << " (effective=" << ResolveBeginCandidatePoolCap(beginCandidatePoolCap, beginPickCount) << ")";
+    }
+    std::cout << std::endl;
+    constexpr int kSlotCount = 10;
+    constexpr int kCandidateBatchCount = 200;
+    std::cout << "[Config] seed sweep: 10 slots labeled 0%..90% step 10%, fixed simi; "
+                 "select slots by est(groupSimilarity) quantiles from "
+              << kCandidateBatchCount << " candidate batches" << std::endl;
+
+    auto resetStageTimers = []() {
+        time_cluster = time_1 = time_2 = time_3 = time_4 = 0.0;
+        clu_1 = clu_2 = 0.0;
+    };
+
+    std::ofstream out(outputCsvPath);
+    if (!out.is_open()) {
+        std::cerr << "Cannot open output CSV: " << outputCsvPath << std::endl;
+        return;
+    }
+    out << "SweepSlotPct,DerivedSeed,EstGroupSimilarity,FixedClusteringSim,BatchminPrecise_TimeSec,"
+           "BatchminPrecise_UnionNodeCount,BatchminPrecise_TotalResultNodeCount,BatchminPrecise_ClustersSimi,"
+           "BatchminPrecise_ClustersCspSum,BatchminFast_TimeSec,BatchminFast_UnionNodeCount,"
+           "BatchminFast_TotalResultNodeCount,BatchminFast_ClustersSimi,BatchminFast_ClustersCspSum,GreedyLoop_TimeSec,"
+           "GreedyLoop_UnionNodeCount,GreedyLoop_TotalResultNodeCount,DetailPreciseCsv,DetailFastCsv,DetailGreedyCsv\n";
+
+    struct CandidateBatch {
+        unsigned long long seed = 0;
+        double estSim = 0.0;
+    };
+    std::vector<CandidateBatch> candidates;
+    candidates.reserve(kCandidateBatchCount);
+    for (int i = 0; i < kCandidateBatchCount; ++i) {
+        const unsigned long long candidateSeed = DeriveSeedForFixedSimiSweepSlot(baseSeed, i);
+        query_group candidateBatch =
+            useLegacyQueryBuilder
+                ? BuildLegacyStyleQueryGroup(graph, actualGroupCount, actualQuerySize, candidateSeed, shift1, shift2,
+                                             beginPickCount, beginCandidatePoolCap)
+                : BuildRandomQueryGroup(graph, actualGroupCount, actualQuerySize, candidateSeed);
+        if (candidateBatch.empty()) {
+            continue;
+        }
+        SharingIndex estIndex(graph);
+        const double estBatchSim = estIndex.groupSimilarity(candidateBatch, candidateBatch);
+        candidates.push_back({candidateSeed, estBatchSim});
+    }
+    if (candidates.empty()) {
+        std::cerr << "No valid candidate batches generated for fixed simi sweep." << std::endl;
+        return;
+    }
+
+    std::sort(candidates.begin(), candidates.end(),
+              [](const CandidateBatch& a, const CandidateBatch& b) { return a.estSim < b.estSim; });
+
+    std::vector<CandidateBatch> slotBatches;
+    slotBatches.reserve(kSlotCount);
+    std::vector<bool> used(candidates.size(), false);
+    for (int slotIdx = 0; slotIdx < kSlotCount; ++slotIdx) {
+        const double ratio = (kSlotCount <= 1) ? 0.0 : (static_cast<double>(slotIdx) / (kSlotCount - 1));
+        const std::size_t targetPos =
+            static_cast<std::size_t>(std::llround((candidates.size() - 1) * ratio));
+
+        std::size_t picked = targetPos;
+        bool foundUnused = false;
+        for (std::size_t radius = 0; radius < candidates.size(); ++radius) {
+            if (targetPos >= radius) {
+                const std::size_t left = targetPos - radius;
+                if (!used[left]) {
+                    picked = left;
+                    foundUnused = true;
+                    break;
+                }
+            }
+            const std::size_t right = targetPos + radius;
+            if (right < candidates.size() && !used[right]) {
+                picked = right;
+                foundUnused = true;
+                break;
+            }
+        }
+        if (foundUnused) {
+            used[picked] = true;
+        }
+        slotBatches.push_back(candidates[picked]);
+    }
+
+    std::cout << "[Selection] 10 quantile slots picked from candidate est values:" << std::endl;
+    for (int slotIdx = 0; slotIdx < kSlotCount; ++slotIdx) {
+        const int pct = slotIdx * 10;
+        std::cout << "  slot " << pct << "% -> est=" << slotBatches[slotIdx].estSim
+                  << ", derived_seed=" << slotBatches[slotIdx].seed << std::endl;
+    }
+
+    for (int slotIdx = 0; slotIdx < kSlotCount; ++slotIdx) {
+        const int pct = slotIdx * 10;
+        const unsigned long long derivedSeed = slotBatches[slotIdx].seed;
+        const double estBatchSim = slotBatches[slotIdx].estSim;
+        query_group batch =
+            useLegacyQueryBuilder
+                ? BuildLegacyStyleQueryGroup(graph, actualGroupCount, actualQuerySize, derivedSeed, shift1, shift2,
+                                             beginPickCount, beginCandidatePoolCap)
+                : BuildRandomQueryGroup(graph, actualGroupCount, actualQuerySize, derivedSeed);
+        if (batch.empty()) {
+            std::cout << "[slot pct=" << pct << "] selected batch is empty, skip.\n";
+            continue;
+        }
+
+        simi = fixedClusteringSimi;
+        resetStageTimers();
+        MethodRunResult precise = RunPrecise(graph, batch);
+        resetStageTimers();
+        MethodRunResult fast = RunFast(graph, batch);
+        MethodRunResult greedy = RunGreedyLoop(graph, batch);
+
+        const std::string tag = "pct" + std::to_string(pct) + "_";
+        const std::string preciseDetailPath = AppendSuffixBeforeCsv(outputCsvPath, tag + "precise_detail");
+        const std::string fastDetailPath = AppendSuffixBeforeCsv(outputCsvPath, tag + "fast_detail");
+        const std::string greedyDetailPath = AppendSuffixBeforeCsv(outputCsvPath, tag + "greedy_loop_detail");
+        WriteSlotMethodDetailCsv(preciseDetailPath, pct, derivedSeed, estBatchSim, fixedClusteringSimi, batch, precise);
+        WriteSlotMethodDetailCsv(fastDetailPath, pct, derivedSeed, estBatchSim, fixedClusteringSimi, batch, fast);
+        WriteSlotMethodDetailCsv(greedyDetailPath, pct, derivedSeed, estBatchSim, fixedClusteringSimi, batch, greedy);
+
+        out << pct << "," << derivedSeed << "," << estBatchSim << "," << fixedClusteringSimi << ","
+            << precise.stats.elapsedSec << "," << precise.stats.unionNodeCount << "," << precise.stats.totalResultNodeCount
+            << "," << precise.stats.firstClusterCount << ",0,"
+            << fast.stats.elapsedSec << "," << fast.stats.unionNodeCount << "," << fast.stats.totalResultNodeCount << ","
+            << fast.stats.firstClusterCount << "," << fast.stats.secondClusterCount << "," << greedy.stats.elapsedSec
+            << "," << greedy.stats.unionNodeCount << "," << greedy.stats.totalResultNodeCount << ","
+            << preciseDetailPath << "," << fastDetailPath << "," << greedyDetailPath << "\n";
+
+        std::cout << "[slot " << pct << "%] derived_seed=" << derivedSeed << " est(groupSimilarity)=" << estBatchSim
+                  << " fixed_simi=" << fixedClusteringSimi << " | precise t=" << precise.stats.elapsedSec << "s clu_simi="
+                  << precise.stats.firstClusterCount << ", fast t=" << fast.stats.elapsedSec << "s clu_simi="
+                  << fast.stats.firstClusterCount << " clu_csp_sum=" << fast.stats.secondClusterCount
+                  << ", greedy t=" << greedy.stats.elapsedSec << "s\n";
+    }
+
+    out << "SUMMARY,base_seed=" << baseSeed << ",query_group_count=" << actualGroupCount
+        << ",query_size=" << actualQuerySize << ",fixed_clustering_simi=" << fixedClusteringSimi
+        << ",sweep=slot_0pct_to_90pct_step_10pct,candidate_batch_count=" << kCandidateBatchCount
+        << ",DESIGN=fixed_simi_quantile_selected_batches,query_builder="
+        << (useLegacyQueryBuilder ? "legacy" : "random");
+    if (useLegacyQueryBuilder) {
+        out << ",begin_candidate_pool_cap=" << beginCandidatePoolCap
+            << ",begin_candidates_target=" << ResolveBeginCandidatePoolCap(beginCandidatePoolCap, beginPickCount);
+    }
+    out << "\n";
+    out.close();
+
+    std::cout << "Output CSV: " << outputCsvPath << std::endl;
+    std::cout << "===== end final_min_csp_fixed_simi_seed_sweep =====\n" << std::endl;
+}
+
+void RunFinalMinCspQueryCountSweepExperiment(Graph& graph, int queryNodeCount, unsigned long long randomSeed,
+                                             const std::string& outputCsvPath, double fixedClusteringSimi,
+                                             bool useLegacyQueryBuilder, int shift1, int shift2, int beginPickCount,
+                                             int beginCandidatePoolCap) {
+    if (std::isnan(fixedClusteringSimi)) {
+        std::cerr << "[final_min_csp_query_count_sweep] fixedClusteringSimi (argv[6]) is required.\n";
+        return;
+    }
+
+    constexpr int kCounts[] = {20, 50, 100, 200, 300};
+    const int actualQuerySize = (queryNodeCount > 0) ? queryNodeCount : kDefaultQuerySize;
+    unsigned long long baseSeed = randomSeed;
+    if (baseSeed == 0) {
+        std::random_device rd;
+        baseSeed = (static_cast<unsigned long long>(rd()) << 32) ^ static_cast<unsigned long long>(rd());
+    }
+
+    std::cout << "\n===== final_min_csp_query_count_sweep =====" << std::endl;
+    std::cout << "[Config] query_size=" << actualQuerySize << ", base_random_seed=" << baseSeed << std::endl;
+    std::cout << "[Config] fixed_clustering_simi=" << fixedClusteringSimi
+              << " (batchMinsearch clustering threshold, constant across counts)" << std::endl;
+    std::cout << "[Config] query_builder=" << (useLegacyQueryBuilder ? "legacy" : "random");
+    if (useLegacyQueryBuilder) {
+        std::cout << ", shift_1=" << shift1 << ", shift_2=" << shift2 << ", begin_pick_count=" << beginPickCount
+                  << ", begin_candidate_pool_cap=" << beginCandidatePoolCap
+                  << " (effective=" << ResolveBeginCandidatePoolCap(beginCandidatePoolCap, beginPickCount) << ")";
+    }
+    std::cout << std::endl;
+
+    auto resetStageTimers = []() {
+        time_cluster = time_1 = time_2 = time_3 = time_4 = 0.0;
+        clu_1 = clu_2 = 0.0;
+    };
+
+    std::ofstream out(outputCsvPath);
+    if (!out.is_open()) {
+        std::cerr << "Cannot open output CSV: " << outputCsvPath << std::endl;
+        return;
+    }
+    out << "QueryGroupCount,EstGroupSimilarity,FixedClusteringSim,BatchminPrecise_TimeSec,"
+           "BatchminPrecise_UnionNodeCount,BatchminPrecise_TotalResultNodeCount,BatchminFast_TimeSec,"
+           "BatchminFast_UnionNodeCount,BatchminFast_TotalResultNodeCount,GreedyLoop_TimeSec,"
+           "GreedyLoop_UnionNodeCount,GreedyLoop_TotalResultNodeCount,DetailPreciseCsv,DetailFastCsv,DetailGreedyCsv\n";
+
+    for (int idx = 0; idx < static_cast<int>(sizeof(kCounts) / sizeof(kCounts[0])); ++idx) {
+        const int groupCount = kCounts[idx];
+        const unsigned long long derivedSeed = baseSeed;
+
+        query_group batch =
+            useLegacyQueryBuilder
+                ? BuildLegacyStyleQueryGroup(graph, groupCount, actualQuerySize, derivedSeed, shift1, shift2,
+                                             beginPickCount, beginCandidatePoolCap)
+                : BuildRandomQueryGroup(graph, groupCount, actualQuerySize, derivedSeed);
+        if (batch.empty()) {
+            std::cout << "[query_count=" << groupCount << "] empty query batch, skip.\n";
+            continue;
+        }
+
+        SharingIndex estIndex(graph);
+        const double estBatchSim = estIndex.groupSimilarity(batch, batch);
+
+        simi = fixedClusteringSimi;
+        resetStageTimers();
+        MethodRunResult precise = RunPrecise(graph, batch);
+        resetStageTimers();
+        MethodRunResult fast = RunFast(graph, batch);
+        MethodRunResult greedy = RunGreedyLoop(graph, batch);
+
+        const std::string tag = "q" + std::to_string(groupCount) + "_";
+        const std::string preciseDetailPath = AppendSuffixBeforeCsv(outputCsvPath, tag + "precise_detail");
+        const std::string fastDetailPath = AppendSuffixBeforeCsv(outputCsvPath, tag + "fast_detail");
+        const std::string greedyDetailPath = AppendSuffixBeforeCsv(outputCsvPath, tag + "greedy_loop_detail");
+        WriteSlotMethodDetailCsv(preciseDetailPath, groupCount, derivedSeed, estBatchSim, fixedClusteringSimi, batch,
+                                 precise);
+        WriteSlotMethodDetailCsv(fastDetailPath, groupCount, derivedSeed, estBatchSim, fixedClusteringSimi, batch, fast);
+        WriteSlotMethodDetailCsv(greedyDetailPath, groupCount, derivedSeed, estBatchSim, fixedClusteringSimi, batch,
+                                 greedy);
+
+        out << groupCount << "," << estBatchSim << "," << fixedClusteringSimi << "," << precise.stats.elapsedSec << ","
+            << precise.stats.unionNodeCount << "," << precise.stats.totalResultNodeCount << ","
+            << fast.stats.elapsedSec << "," << fast.stats.unionNodeCount << "," << fast.stats.totalResultNodeCount << ","
+            << greedy.stats.elapsedSec
+            << "," << greedy.stats.unionNodeCount << "," << greedy.stats.totalResultNodeCount << ","
+            << preciseDetailPath << "," << fastDetailPath << "," << greedyDetailPath << "\n";
+
+        std::cout << "[query_count=" << groupCount << "] derived_seed=" << derivedSeed
+                  << " est(groupSimilarity)=" << estBatchSim << " fixed_simi=" << fixedClusteringSimi
+                  << " | precise t=" << precise.stats.elapsedSec << "s clu_simi=" << precise.stats.firstClusterCount
+                  << ", fast t=" << fast.stats.elapsedSec << "s clu_simi=" << fast.stats.firstClusterCount
+                  << " clu_csp_sum=" << fast.stats.secondClusterCount << ", greedy t=" << greedy.stats.elapsedSec
+                  << "s" << std::endl;
+    }
+
+    out << "SUMMARY,base_seed=" << baseSeed << ",query_size=" << actualQuerySize
+        << ",fixed_clustering_simi=" << fixedClusteringSimi << ",sweep=query_group_count_{20,50,100,200,300}"
+        << ",DESIGN=fixed_simi_query_count_sweep,query_builder=" << (useLegacyQueryBuilder ? "legacy" : "random");
+    if (useLegacyQueryBuilder) {
+        out << ",begin_candidate_pool_cap=" << beginCandidatePoolCap
+            << ",begin_candidates_target=" << ResolveBeginCandidatePoolCap(beginCandidatePoolCap, beginPickCount);
+    }
+    out << "\n";
+    out.close();
+
+    std::cout << "Output CSV: " << outputCsvPath << std::endl;
+    std::cout << "===== end final_min_csp_query_count_sweep =====\n" << std::endl;
 }
 
 }  // namespace experiments

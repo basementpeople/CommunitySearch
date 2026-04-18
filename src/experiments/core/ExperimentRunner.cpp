@@ -1,6 +1,7 @@
 #include "experiments/core/ExperimentRunner.h"
 
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -57,6 +58,12 @@ std::string defaultCsvPathForExperiment(const std::string& name) {
     }
     if (name == "final_min_csp_simi_sweep") {
         return std::string(kOutputDir) + "final\\final_min_csp_simi_sweep_result.csv";
+    }
+    if (name == "final_min_csp_fixed_simi_seed_sweep") {
+        return std::string(kOutputDir) + "final\\final_min_csp_fixed_simi_seed_sweep_result.csv";
+    }
+    if (name == "final_min_csp_query_count_sweep") {
+        return std::string(kOutputDir) + "final\\final_min_csp_query_count_sweep_result.csv";
     }
     return std::string(kOutputDir) + "single_query\\global_result.csv";
 }
@@ -219,12 +226,14 @@ namespace experiments {
 
 void RunExperiment(const std::string& experimentName, Graph& graph, int randomQueryCount,
                    unsigned long long randomSeed, int queryNodeCount, double similarityThreshold,
-                   bool useLegacyQueryBuilder, int shift1, int shift2, int beginPickCount) {
+                   bool useLegacyQueryBuilder, int shift1, int shift2, int beginPickCount,
+                   int beginCandidatePoolCap) {
     (void)similarityThreshold;
     (void)useLegacyQueryBuilder;
     (void)shift1;
     (void)shift2;
     (void)beginPickCount;
+    (void)beginCandidatePoolCap;
 
     if (experimentName == "batchsearch" || experimentName == "batchsearch_rough") {
         const bool rough = (experimentName == "batchsearch_rough");
@@ -372,7 +381,7 @@ void RunExperiment(const std::string& experimentName, Graph& graph, int randomQu
         std::cout << "Output CSV: " << path << std::endl;
         RunMultiQueryMinCompareExperiment(graph, randomQueryCount, queryNodeCount, randomSeed, path,
                                           similarityThreshold, useLegacyQueryBuilder, shift1, shift2,
-                                          beginPickCount);
+                                          beginPickCount, beginCandidatePoolCap);
         return;
     }
 
@@ -397,7 +406,38 @@ void RunExperiment(const std::string& experimentName, Graph& graph, int randomQu
         ensureOutputDirectory(path);
         std::cout << "Output CSV: " << path << std::endl;
         RunFinalMinCspSimiSweepExperiment(graph, randomQueryCount, queryNodeCount, randomSeed, path,
-                                          useLegacyQueryBuilder, shift1, shift2, beginPickCount);
+                                          useLegacyQueryBuilder, shift1, shift2, beginPickCount,
+                                          beginCandidatePoolCap);
+        return;
+    }
+
+    if (experimentName == "final_min_csp_fixed_simi_seed_sweep") {
+        if (std::isnan(similarityThreshold)) {
+            std::cerr
+                << "final_min_csp_fixed_simi_seed_sweep: arg6 (fixedClusteringSimi) is required; cannot be omitted.\n";
+            return;
+        }
+        const std::string path = defaultCsvPathForExperiment(experimentName);
+        ensureOutputDirectory(path);
+        std::cout << "Output CSV: " << path << std::endl;
+        RunFinalMinCspFixedSimiSeedSweepExperiment(graph, randomQueryCount, queryNodeCount, randomSeed, path,
+                                                   similarityThreshold, useLegacyQueryBuilder, shift1, shift2,
+                                                   beginPickCount, beginCandidatePoolCap);
+        return;
+    }
+
+    if (experimentName == "final_min_csp_query_count_sweep") {
+        if (std::isnan(similarityThreshold)) {
+            std::cerr
+                << "final_min_csp_query_count_sweep: arg6 (fixedClusteringSimi) is required; cannot be omitted.\n";
+            return;
+        }
+        const std::string path = defaultCsvPathForExperiment(experimentName);
+        ensureOutputDirectory(path);
+        std::cout << "Output CSV: " << path << std::endl;
+        RunFinalMinCspQueryCountSweepExperiment(graph, queryNodeCount, randomSeed, path, similarityThreshold,
+                                                useLegacyQueryBuilder, shift1, shift2, beginPickCount,
+                                                beginCandidatePoolCap);
         return;
     }
 

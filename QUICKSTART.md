@@ -58,7 +58,7 @@ cmake --build build --config Release
 通用格式（见 `main.cpp`）：
 
 ```bash
-csp.exe <datasetPath> <experimentName> <randomQueryCount> <randomSeed> <queryNodeCount> [similarityThreshold] [useLegacyQueryBuilder] [shift_1] [shift_2] [begin_pick_count]
+csp.exe <datasetPath> <experimentName> <randomQueryCount> <randomSeed> <queryNodeCount> [similarityThreshold] [useLegacyQueryBuilder] [shift_1] [shift_2] [begin_pick_count] [begin_candidate_pool_cap]
 ```
 
 最常用示例（在项目根目录执行）：

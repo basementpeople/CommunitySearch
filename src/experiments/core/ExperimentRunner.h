@@ -12,6 +12,7 @@ namespace experiments {
 void RunExperiment(const std::string& experimentName, Graph& graph, int randomQueryCount = 0,
                    unsigned long long randomSeed = 0, int queryNodeCount = 0,
                    double similarityThreshold = std::numeric_limits<double>::quiet_NaN(),
-                   bool useLegacyQueryBuilder = false, int shift1 = 0, int shift2 = 0, int beginPickCount = 3);
+                   bool useLegacyQueryBuilder = false, int shift1 = 0, int shift2 = 0, int beginPickCount = 3,
+                   int beginCandidatePoolCap = 0);
 
 }  // namespace experiments

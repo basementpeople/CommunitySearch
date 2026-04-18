@@ -40,6 +40,7 @@
 8. `shift_1`：可选，legacy 模式下 core 下界扩展参数（默认 `0`）
 9. `shift_2`：可选，legacy 模式下 core 上界扩展参数（默认 `0`）
 10. `begin_pick_count`：可选，legacy 模式下每组初始选点数（默认 `3`）
+11. `begin_candidate_pool_cap`：可选，legacy 模式下 **`beginCandidates` 种子池目标个数**（达到即停止向池中添加区域种子）。**`0` 表示按旧规则**：`2 × max(1, begin_pick_count)`。传 **正整数** 则完全由你指定池大小，不再与 `begin_pick_count` 成固定倍数关系。
 
 示例：
 
@@ -141,7 +142,7 @@ csp.exe data/raw/email-Eu-core.txt "batchsearch" 20 42 6
     - `batchMinsearchPrecise`
     - `batchMinsearchFast`
     - 循环 `greedyConnection`（与 `multi_query_min_compare` 相同实现；**不依赖** `simi`，各行中 greedy 指标相同，仅便于与 Precise/Fast 同表对比）
-  - 查询构造与 `multi_query_min_compare` 一致：第 7～10 个参数可指定 legacy 与 `shift_1` / `shift_2` / `begin_pick_count`。
+  - 查询构造与 `multi_query_min_compare` 一致：第 7～11 个参数可指定 legacy、`shift_1` / `shift_2`、`begin_pick_count`、`begin_candidate_pool_cap`。
   - 第 6 个参数 `similarityThreshold` 在扫频实验中**不使用**（可填任意占位值，例如 `0`）。
   - 输出：
     - 汇总：`data\output\final\final_min_csp_simi_sweep_result.csv`（每行一个相似度档位，宽表列出三方法的耗时与并集/总和规模，**不含** `AvgResultNodeCount`）
@@ -149,6 +150,20 @@ csp.exe data/raw/email-Eu-core.txt "batchsearch" 20 42 6
       - `..._precise_detail.csv`：Precise 在每个 `simi` 下逐查询的 `TimeSec`（该档整批耗时，各行相同）、`ResultSize`、`K`、`ComponentId`
       - `..._fast_detail.csv`：Fast，列同上
       - `..._greedy_loop_detail.csv`：Greedy 与 `simi` 无关，`SimilarityPct`/`Similarity` 为 `-`，`TimeSec` 为整批 greedy 总耗时
+
+- `final_min_csp_fixed_simi_seed_sweep`（min-CSP final 实验 2，方案 A）
+  - **聚类相似度阈值 `simi` 固定**为第 **6** 个参数 `similarityThreshold`（**必填**，不可省略；与 `multi_query_min_compare` 中用于 `batchMinsearch` 的 `simi` 含义相同）。
+  - 行标签 **0%～90%**（步长 10%）仅表示 **10 个档**；每档用 **派生随机种子** 重新生成**一整批**查询（与实验 1 相同 random/legacy 规则），故 **每批的 `groupSimilarity(batch, batch)` 估计值一般既不为 0～0.9 均匀分布，也不等于行标签**。
+  - 每档输出 `EstGroupSimilarity`、三方法耗时与结果规模、簇数等；**每档各一份**三方法明细：`..._pct0_..._detail.csv`、…、`_pct90_...`。
+  - 输出汇总：`data\output\final\final_min_csp_fixed_simi_seed_sweep_result.csv`。
+  - 第 7～11 个参数与 `multi_query_min_compare` 的 legacy 段一致（未用 legacy 时后几个参数可忽略）。
+
+- `final_min_csp_query_count_sweep`（min-CSP final 实验 3）
+  - **聚类相似度阈值 `simi` 固定**为第 **6** 个参数 `similarityThreshold`（**必填**）。
+  - 扫描查询组数量：`{20, 50, 100, 200, 300}`；其余构造参数固定（random/legacy 均支持）。
+  - 每个查询组数量档位使用派生种子生成一批查询，并记录该批 `EstGroupSimilarity = groupSimilarity(batch, batch)`（仅用于描述批次相似性，不参与阈值变化）。
+  - 输出汇总：`data\output\final\final_min_csp_query_count_sweep_result.csv`。
+  - 输出明细：`..._q20_precise_detail.csv`、`..._q50_fast_detail.csv`、`..._q300_greedy_loop_detail.csv` 等（每个档位三份）。
 
 - `batchmin` / `h0` / `h` / `h1` / `h2` / `compare`
   - 历史 batch 与对比实验路径。
@@ -234,6 +249,36 @@ csp.exe data/raw/email-Eu-core.txt "final_min_csp_simi_sweep" 20 123 6 0
 csp.exe data/raw/email-Eu-core.txt "final_min_csp_simi_sweep" 20 123 6 0 1 1 2 3
 ```
 
+- **legacy 且指定 `beginCandidates` 池大小（第 11 个参数，例如 10）**
+
+```bash
+csp.exe data/raw/email-Eu-core.txt "final_min_csp_simi_sweep" 20 123 6 0 1 1 2 3 10
+```
+
+- **min-CSP final 实验 2：固定聚类阈值，10 批派生种子的查询集（每批记录估计相似度）**
+
+```bash
+csp.exe data/raw/email-Eu-core.txt "final_min_csp_fixed_simi_seed_sweep" 20 123 6 0.2
+```
+
+- **实验 2 + legacy（`simi=0.2` 为第 6 个参数，勿省略）**
+
+```bash
+csp.exe data/raw/email-Eu-core.txt "final_min_csp_fixed_simi_seed_sweep" 20 123 6 0.2 1 1 2 3
+```
+
+- **min-CSP final 实验 3：固定聚类阈值，扫描查询组数量（20/50/100/200/300）**
+
+```bash
+csp.exe data/raw/email-Eu-core.txt "final_min_csp_query_count_sweep" 0 123 6 0.2
+```
+
+- **实验 3 + legacy（第 3 个参数会被忽略；数量由实验内部固定 5 档）**
+
+```bash
+csp.exe data/raw/email-Eu-core.txt "final_min_csp_query_count_sweep" 0 123 6 0.2 1 1 2 3
+```
+
 ## 5) 输出字段解释（多查询对比）
 
 `batchsearch_result.csv` 与 `batchsearch_rough_result.csv` 的关键列：
@@ -283,6 +328,26 @@ csp.exe data/raw/email-Eu-core.txt "final_min_csp_simi_sweep" 20 123 6 0 1 1 2 3
 - `SimilarityPct` / `Similarity`：greedy 明细中为 `-`（与 `simi` 无关）
 - `TimeSec`：该次运行中**整批**该方法的 wall 时间（秒）；明细中同一 `simi` 下各查询行重复同一 `TimeSec`
 - `Code`、 `QueryNodes`、 `ResultSize`、 `K`、 `ComponentId`：与 `multi_query_min_compare` 明细含义一致
+
+`final_min_csp_fixed_simi_seed_sweep_result.csv` 的关键列：
+
+- `SweepSlotPct` / `DerivedSeed`：行标签 0…90 与**该批查询**用的派生随机种子（**不是**估计相似度的值）
+- `EstGroupSimilarity`：`groupSimilarity(batch, batch)`，与自动估 `simi` 同式；**不保证**在 0～0.9 上均匀
+- `FixedClusteringSim`：本实验固定的聚类阈值，即第 6 个命令行参数
+- `BatchminPrecise_ClustersSimi` / `BatchminFast_ClustersSimi`：相似度聚类簇数；`BatchminPrecise_ClustersCspSum` 恒为 0，Fast 的 `BatchminFast_ClustersCspSum` 为二次聚类累计簇数
+- 各 `Detail*Csv`：对应该档的 `..._pct<N>_precise_detail.csv` 等路径
+- 明细表额外列 `EstGroupSimilarity` / `FixedClusteringSim` 便于与汇总对照
+
+`..._pct<N>_*_detail.csv` 关键列与实验 1 的 slot 型明细相同：`SweepSlotPct`、`DerivedSeed`、`EstGroupSimilarity`、`FixedClusteringSim`、每查询 `TimeSec/ResultSize/K/...`（**每档一批查询，Greedy 的 `TimeSec` 也随批变化）
+
+`final_min_csp_query_count_sweep_result.csv` 的关键列：
+
+- `QueryGroupCount`：档位查询组数量，固定取 `{20,50,100,200,300}`
+- `DerivedSeed`：该档查询批次的派生种子
+- `EstGroupSimilarity`：该档查询批次的 `groupSimilarity(batch, batch)`
+- `FixedClusteringSim`：固定聚类阈值（第 6 个参数）
+- `BatchminPrecise_*` / `BatchminFast_*` / `GreedyLoop_*`：与实验 2 相同含义（时间、结果规模、簇统计）
+- `Detail*Csv`：该档对应三种算法的明细路径（命名前缀为 `q20`/`q50`/...）
 
 ## 6) 开发建议
 
