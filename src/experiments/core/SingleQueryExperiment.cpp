@@ -3,7 +3,9 @@
 #include <ctime>
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "TreeIndex.h"
@@ -105,6 +107,43 @@ std::string AppendSuffixBeforeCsv(const std::string& path, const std::string& su
     return path + "_" + suffix;
 }
 
+query_group LoadManualQueryGroup(const std::string& path) {
+    std::ifstream in(path);
+    query_group group;
+    if (!in.is_open()) {
+        return group;
+    }
+    std::string line;
+    while (std::getline(in, line)) {
+        if (line.empty()) {
+            continue;
+        }
+        std::stringstream ss(line);
+        query_nodes query;
+        int node = 0;
+        while (ss >> node) {
+            query.insert(node);
+        }
+        if (!query.empty()) {
+            group.push_back(std::move(query));
+        }
+    }
+    return group;
+}
+
+void WriteManualMethodDetailCsv(const std::string& path, const query_group& group,
+                                const std::vector<SingleQueryRunResult>& results) {
+    std::ofstream out(path);
+    if (!out.is_open()) {
+        return;
+    }
+    out << "QueryId,QueryNodes,TimeSec,ResultSize,K\n";
+    for (std::size_t i = 0; i < group.size() && i < results.size(); ++i) {
+        out << i << "," << QueryToString(group[i]) << "," << results[i].elapsedSec << ","
+            << results[i].resultNodes.size() << "," << results[i].k << "\n";
+    }
+}
+
 }  // namespace
 
 namespace experiments {
@@ -171,6 +210,70 @@ void RunSingleQueryComparisonExperiment(Graph& graph, const query_nodes& query, 
               << ", k=" << retrievalResult.k << std::endl;
     std::cout << "  greedy    : time=" << greedyResult.elapsedSec << "s, size=" << greedyResult.resultNodes.size()
               << ", k=" << greedyResult.k << std::endl;
+}
+
+void RunManualQueryGroupComparisonExperiment(Graph& graph, const std::string& queryGroupPath,
+                                             const std::string& outputCsvPath) {
+    query_group group = LoadManualQueryGroup(queryGroupPath);
+    if (group.empty()) {
+        std::cout << "Manual query group is empty or cannot be loaded: " << queryGroupPath << std::endl;
+        return;
+    }
+
+    std::vector<SingleQueryRunResult> globalRuns;
+    std::vector<SingleQueryRunResult> retrievalRuns;
+    std::vector<SingleQueryRunResult> greedyRuns;
+    globalRuns.reserve(group.size());
+    retrievalRuns.reserve(group.size());
+    greedyRuns.reserve(group.size());
+
+    for (const auto& query : group) {
+        globalRuns.push_back(RunGlobal(graph, query));
+        greedyRuns.push_back(RunGreedy(graph, query));
+        retrievalRuns.push_back(RunRetrieval(graph, query));
+        // greedyRuns.push_back(RunGreedy(graph, query));
+    }
+
+    auto summarizeRuns = [](const std::vector<SingleQueryRunResult>& runs) {
+        double totalTime = 0.0;
+        std::size_t totalSize = 0;
+        for (const auto& run : runs) {
+            totalTime += run.elapsedSec;
+            totalSize += run.resultNodes.size();
+        }
+        const std::size_t avgSize = runs.empty() ? 0 : (totalSize / runs.size());
+        return std::tuple<double, std::size_t, std::size_t>(totalTime, totalSize, avgSize);
+    };
+
+    const std::string globalDetailPath = AppendSuffixBeforeCsv(outputCsvPath, "global_detail");
+    const std::string retrievalDetailPath = AppendSuffixBeforeCsv(outputCsvPath, "retrieval_detail");
+    const std::string greedyDetailPath = AppendSuffixBeforeCsv(outputCsvPath, "greedy_detail");
+    WriteManualMethodDetailCsv(globalDetailPath, group, globalRuns);
+    WriteManualMethodDetailCsv(retrievalDetailPath, group, retrievalRuns);
+    WriteManualMethodDetailCsv(greedyDetailPath, group, greedyRuns);
+
+    const auto [globalTime, globalTotal, globalAvg] = summarizeRuns(globalRuns);
+    const auto [retrievalTime, retrievalTotal, retrievalAvg] = summarizeRuns(retrievalRuns);
+    const auto [greedyTime, greedyTotal, greedyAvg] = summarizeRuns(greedyRuns);
+
+    std::ofstream out(outputCsvPath);
+    if (!out.is_open()) {
+        return;
+    }
+    out << "Method,TotalTimeSec,TotalResultSize,AvgResultSize,DetailCsv\n";
+    out << "global_loop," << globalTime << "," << globalTotal << "," << globalAvg << "," << globalDetailPath << "\n";
+    out << "retrieval_loop," << retrievalTime << "," << retrievalTotal << "," << retrievalAvg << "," << retrievalDetailPath
+        << "\n";
+    out << "greedy_loop," << greedyTime << "," << greedyTotal << "," << greedyAvg << "," << greedyDetailPath << "\n";
+
+    std::cout << "Manual query compare summary:" << std::endl;
+    std::cout << "  query_count : " << group.size() << std::endl;
+    std::cout << "  global_loop : time=" << globalTime << "s, total_size=" << globalTotal << ", avg_size=" << globalAvg
+              << std::endl;
+    std::cout << "  retrieval   : time=" << retrievalTime << "s, total_size=" << retrievalTotal
+              << ", avg_size=" << retrievalAvg << std::endl;
+    std::cout << "  greedy      : time=" << greedyTime << "s, total_size=" << greedyTotal << ", avg_size=" << greedyAvg
+              << std::endl;
 }
 
 }  // namespace experiments

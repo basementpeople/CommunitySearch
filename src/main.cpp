@@ -35,6 +35,7 @@ int main(int argc, char* argv[]) {
     int legacyShift2 = 0;
     int legacyBeginPickCount = 3;
     int legacyBeginCandidatePoolCap = 0;
+    std::string manualQueryGroupPath;
     if (argc > 1) {
         datasetPath = argv[1];
     }
@@ -68,6 +69,9 @@ int main(int argc, char* argv[]) {
     if (argc > 11) {
         legacyBeginCandidatePoolCap = std::atoi(argv[11]);
     }
+    if (argc > 12) {
+        manualQueryGroupPath = argv[12];
+    }
     std::cout << "Using dataset: " << datasetPath << std::endl;
     std::cout << "Using experiment: " << experimentName << std::endl;
 
@@ -75,7 +79,7 @@ int main(int argc, char* argv[]) {
     Graph graph(datasetPath);
     experiments::RunExperiment(experimentName, graph, randomQueryCount, randomSeed, queryNodeCount,
                                similarityThreshold, useLegacyQueryBuilder, legacyShift1, legacyShift2,
-                               legacyBeginPickCount, legacyBeginCandidatePoolCap);
+                               legacyBeginPickCount, legacyBeginCandidatePoolCap, manualQueryGroupPath);
 
     return 0;
 }

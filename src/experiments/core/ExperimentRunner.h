@@ -13,6 +13,6 @@ void RunExperiment(const std::string& experimentName, Graph& graph, int randomQu
                    unsigned long long randomSeed = 0, int queryNodeCount = 0,
                    double similarityThreshold = std::numeric_limits<double>::quiet_NaN(),
                    bool useLegacyQueryBuilder = false, int shift1 = 0, int shift2 = 0, int beginPickCount = 3,
-                   int beginCandidatePoolCap = 0);
+                   int beginCandidatePoolCap = 0, const std::string& manualQueryGroupPath = "");
 
 }  // namespace experiments

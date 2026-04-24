@@ -48,7 +48,11 @@ std::unordered_set<int> Graph::globalsearch(const query_nodes& queryNodes) {
     int node;             // 当前处理的节点
     int lowestDegree = 0; // 当前的最低度数
     int neighborDegree;   // 邻居的度数
-    std::unordered_set<int> reachable; // 结果集
+    // 保存“上一轮仍可行”的结果；先用初始 activeNodes 计算一次，避免第一轮提前退出时为空。
+    std::unordered_set<int> reachable = getComponent(queryNodes, activeNodes); // 结果集
+    if (!isConnected(queryNodes, degrees)) {
+        return {};
+    }
 
     // 主循环
     while (lowestDegree < list.size()) {
@@ -161,6 +165,7 @@ std::unordered_set<int> Graph::kGlobalsearch(const query_nodes& queryNodes, int 
     }
 
     // 按距离分层，存储每个距离的节点
+    // map 会按 key 升序有序存储
     std::map<int, std::vector<int>> levelNodes;
     for (const auto& pair : dist) {
         levelNodes[pair.second].push_back(pair.first);

@@ -50,6 +50,9 @@ std::string defaultCsvPathForExperiment(const std::string& name) {
     if (name == "multi_query_min_compare") {
         return std::string(kOutputDir) + "multi_query\\multi_query_min_compare_result.csv";
     }
+    if (name == "manual_query_compare") {
+        return std::string(kOutputDir) + "multi_query\\manual_query_compare_result.csv";
+    }
     if (name == "final_csp_three_compare") {
         return std::string(kOutputDir) + "final\\final_csp_three_compare_result.csv";
     }
@@ -227,13 +230,14 @@ namespace experiments {
 void RunExperiment(const std::string& experimentName, Graph& graph, int randomQueryCount,
                    unsigned long long randomSeed, int queryNodeCount, double similarityThreshold,
                    bool useLegacyQueryBuilder, int shift1, int shift2, int beginPickCount,
-                   int beginCandidatePoolCap) {
+                   int beginCandidatePoolCap, const std::string& manualQueryGroupPath) {
     (void)similarityThreshold;
     (void)useLegacyQueryBuilder;
     (void)shift1;
     (void)shift2;
     (void)beginPickCount;
     (void)beginCandidatePoolCap;
+    (void)manualQueryGroupPath;
 
     if (experimentName == "batchsearch" || experimentName == "batchsearch_rough") {
         const bool rough = (experimentName == "batchsearch_rough");
@@ -382,6 +386,19 @@ void RunExperiment(const std::string& experimentName, Graph& graph, int randomQu
         RunMultiQueryMinCompareExperiment(graph, randomQueryCount, queryNodeCount, randomSeed, path,
                                           similarityThreshold, useLegacyQueryBuilder, shift1, shift2,
                                           beginPickCount, beginCandidatePoolCap);
+        return;
+    }
+
+    if (experimentName == "manual_query_compare") {
+        if (manualQueryGroupPath.empty()) {
+            std::cerr << "manual_query_compare requires arg12: manualQueryGroupPath." << std::endl;
+            return;
+        }
+        const std::string path = defaultCsvPathForExperiment(experimentName);
+        ensureOutputDirectory(path);
+        std::cout << "Output CSV: " << path << std::endl;
+        std::cout << "Manual query group path: " << manualQueryGroupPath << std::endl;
+        RunManualQueryGroupComparisonExperiment(graph, manualQueryGroupPath, path);
         return;
     }
 

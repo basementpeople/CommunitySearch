@@ -145,6 +145,10 @@ protected:
     // 连通分量id -> 子连通分量id集
     std::unordered_map<int, std::unordered_set<int>> comToChildren; 
 
+    // 当前仍未挂接到父连通分量（comToParent == -1）的 component 集合。
+    // 用于索引构建过程中跟踪“待连接”的连通分量，避免跨实例共享状态污染。
+    std::unordered_set<int> pending_parent;
+
 };
 
 #endif // TREE_H

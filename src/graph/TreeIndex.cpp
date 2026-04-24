@@ -1,6 +1,52 @@
 ﻿#include "TreeIndex.h"
 #include "ProjectConstants.h"
-std::unordered_set<int> pending_parent;
+
+namespace {
+
+bool QueryNodesConnectedInGraph(const query_nodes& queryNodes,
+                                const std::unordered_map<int, std::unordered_set<int>>& adj) {
+    if (queryNodes.empty()) {
+        return false;
+    }
+    int start = -1;
+    for (int q : queryNodes) {
+        if (adj.find(q) == adj.end()) {
+            return false;
+        }
+        if (start == -1) {
+            start = q;
+        }
+    }
+    if (start == -1) {
+        return false;
+    }
+
+    std::unordered_set<int> visited;
+    std::queue<int> bfs;
+    visited.insert(start);
+    bfs.push(start);
+    while (!bfs.empty()) {
+        const int u = bfs.front();
+        bfs.pop();
+        auto it = adj.find(u);
+        if (it == adj.end()) {
+            continue;
+        }
+        for (int v : it->second) {
+            if (visited.insert(v).second) {
+                bfs.push(v);
+            }
+        }
+    }
+    for (int q : queryNodes) {
+        if (visited.find(q) == visited.end()) {
+            return false;
+        }
+    }
+    return true;
+}
+
+}  // namespace
 
 void TreeIndex::copyGraphState(const Graph& graph) {
     m = graph.getm();
@@ -444,6 +490,11 @@ void TreeIndex::printTreeIndex() {
 
 std::unordered_set<int> TreeIndex::retrievalShellStruct(const query_nodes& queryNodes, int& k) {
     k = 0;
+    // 查询点在原图中不连通时，按问题定义应直接无解返回，避免后续循环不收敛。
+    if (!QueryNodesConnectedInGraph(queryNodes, adj)) {
+        return {};
+    }
+
     query_nodes Q = queryNodes;
     for (auto& node : queryNodes) {
         if (nodeToShell[node] > k) {
@@ -468,6 +519,9 @@ std::unordered_set<int> TreeIndex::retrievalShellStruct(const query_nodes& query
     std::unordered_set<int> Hx;
 
     while (H.size() != 1 || Q.size() != 0) {
+        if (k <= 0) {
+            return {};
+        }
         k = k - 1;
         query_nodes Q_;
         for (auto& node : Q) {
@@ -499,6 +553,9 @@ std::unordered_set<int> TreeIndex::retrievalShellStruct(const query_nodes& query
                     }
                 }
             }
+        }
+        if (Hp.empty() && Q.empty()) {
+            return {};
         }
         H = Hp;
     }

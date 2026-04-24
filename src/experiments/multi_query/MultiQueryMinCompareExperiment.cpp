@@ -543,6 +543,9 @@ void RunFinalMinCspSimiSweepExperiment(Graph& graph, int queryGroupCount, int qu
         std::cout << "\u672a\u751f\u6210\u67e5\u8be2\uff0c\u53ef\u80fd\u662f\u56fe\u4e3a\u7a7a\u3002" << std::endl;
         return;
     }
+    SharingIndex estIndex(graph);
+    const double estGroupSimilarity = estIndex.groupSimilarity(group, group);
+    std::cout << "[Config] estimated_group_similarity(group,group)=" << estGroupSimilarity << std::endl;
 
     auto resetStageTimers = []() {
         time_cluster = time_1 = time_2 = time_3 = time_4 = 0.0;
@@ -676,9 +679,8 @@ void RunFinalMinCspFixedSimiSeedSweepExperiment(Graph& graph, int queryGroupCoun
         return;
     }
     out << "SweepSlotPct,DerivedSeed,EstGroupSimilarity,FixedClusteringSim,BatchminPrecise_TimeSec,"
-           "BatchminPrecise_UnionNodeCount,BatchminPrecise_TotalResultNodeCount,BatchminPrecise_ClustersSimi,"
-           "BatchminPrecise_ClustersCspSum,BatchminFast_TimeSec,BatchminFast_UnionNodeCount,"
-           "BatchminFast_TotalResultNodeCount,BatchminFast_ClustersSimi,BatchminFast_ClustersCspSum,GreedyLoop_TimeSec,"
+           "BatchminPrecise_UnionNodeCount,BatchminPrecise_TotalResultNodeCount,BatchminFast_TimeSec,"
+           "BatchminFast_UnionNodeCount,BatchminFast_TotalResultNodeCount,GreedyLoop_TimeSec,"
            "GreedyLoop_UnionNodeCount,GreedyLoop_TotalResultNodeCount,DetailPreciseCsv,DetailFastCsv,DetailGreedyCsv\n";
 
     struct CandidateBatch {
@@ -779,9 +781,8 @@ void RunFinalMinCspFixedSimiSeedSweepExperiment(Graph& graph, int queryGroupCoun
 
         out << pct << "," << derivedSeed << "," << estBatchSim << "," << fixedClusteringSimi << ","
             << precise.stats.elapsedSec << "," << precise.stats.unionNodeCount << "," << precise.stats.totalResultNodeCount
-            << "," << precise.stats.firstClusterCount << ",0,"
-            << fast.stats.elapsedSec << "," << fast.stats.unionNodeCount << "," << fast.stats.totalResultNodeCount << ","
-            << fast.stats.firstClusterCount << "," << fast.stats.secondClusterCount << "," << greedy.stats.elapsedSec
+            << "," << fast.stats.elapsedSec << "," << fast.stats.unionNodeCount << "," << fast.stats.totalResultNodeCount
+            << "," << greedy.stats.elapsedSec
             << "," << greedy.stats.unionNodeCount << "," << greedy.stats.totalResultNodeCount << ","
             << preciseDetailPath << "," << fastDetailPath << "," << greedyDetailPath << "\n";
 

@@ -1,0 +1,12 @@
+SimilarityPct,Similarity,BatchminPrecise_TimeSec,BatchminPrecise_UnionNodeCount,BatchminPrecise_TotalResultNodeCount,BatchminFast_TimeSec,BatchminFast_UnionNodeCount,BatchminFast_TotalResultNodeCount,GreedyLoop_TimeSec,GreedyLoop_UnionNodeCount,GreedyLoop_TotalResultNodeCount
+0,0,0.056,38,129,0.063,38,760,8.977,71,217
+10,0.1,1.464,71,226,1.35,69,680,8.977,71,217
+20,0.2,4.86,71,226,4.772,69,445,8.977,71,217
+30,0.3,7.224,71,226,7.447,71,348,8.977,71,217
+40,0.4,8.266,71,225,8.323,71,305,8.977,71,217
+50,0.5,8.43,71,225,8.443,71,285,8.977,71,217
+60,0.6,8.485,71,223,8.529,71,259,8.977,71,217
+70,0.7,8.534,71,222,9.012,71,242,8.977,71,217
+80,0.8,9.299,71,217,8.36,71,226,8.977,71,217
+90,0.9,8.908,71,217,8.32,71,219,8.977,71,217
+SUMMARY,seed=123,query_group_count=20,query_size=6,sweep=0pct_to_90pct_step_10pct,query_builder=legacy,begin_candidate_pool_cap=6,begin_candidates_target=6,detail_precise=data\output\final\final_min_csp_simi_sweep_result_precise_detail.csv,detail_fast=data\output\final\final_min_csp_simi_sweep_result_fast_detail.csv,detail_greedy=data\output\final\final_min_csp_simi_sweep_result_greedy_loop_detail.csv
